@@ -4,6 +4,7 @@ import { validateEmail } from "../../utils/validators";
 import InputField from "../../components/InputField";
 import Button from "../../components/Button";
 import loginBg from "../../assets/login-bg.png";
+import { PATHS } from "../../routes/paths";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -25,8 +26,8 @@ function Login() {
 
     // Mock navigation and store role
     localStorage.setItem("userRole", role);
-    if (role === "admin") navigate("/admin");
-    else navigate("/owner");
+    if (role === "admin") navigate(PATHS.ADMIN_HOME);
+    else navigate(PATHS.OWNER_DASHBOARD);
   };
 
   return (

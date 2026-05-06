@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Navbar from "../../components/Navbar";
 import InputField from "../../components/InputField";
@@ -5,6 +6,7 @@ import Button from "../../components/Button";
 import { createBooking } from "../../services/bookingservice";
 
 function BookingForm() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     guestName: "",
@@ -29,13 +31,53 @@ function BookingForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Final Validation before submission
+    if (formData.contact.length !== 10) {
+      alert("Phone number must be exactly 10 digits");
+      return;
+    }
+    if (formData.aadhar.length !== 12) {
+      alert("Aadhar number must be exactly 12 digits");
+      return;
+    }
+    if (/\d/.test(formData.guestName)) {
+      alert("Full Name should not contain numbers");
+      return;
+    }
+
     createBooking(formData);
     alert(`Reservation confirmed for ${formData.guestName}!`);
+    navigate("/admin");
   };
 
   const handleChange = (name, value) => {
+    // Prevent non-numeric input for specific fields and enforce max length
+    if (name === "contact") {
+      const val = value.replace(/\D/g, "");
+      if (val.length <= 10) setFormData(prev => ({ ...prev, [name]: val }));
+      return;
+    }
+    if (name === "aadhar") {
+      const val = value.replace(/\D/g, "");
+      if (val.length <= 12) setFormData(prev => ({ ...prev, [name]: val }));
+      return;
+    }
+    if (name === "age") {
+      const val = value.replace(/\D/g, "");
+      if (val.length <= 3) setFormData(prev => ({ ...prev, [name]: val }));
+      return;
+    }
+    if (name === "guestName") {
+      // Prevent numbers in name
+      const val = value.replace(/[0-9]/g, "");
+      setFormData(prev => ({ ...prev, [name]: val }));
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
 
   return (
     <div>
@@ -65,24 +107,28 @@ function BookingForm() {
                 placeholder="Guest Name"
                 value={formData.guestName}
                 onChange={(e) => handleChange("guestName", e.target.value)}
+                required
               />
             </div>
             <div>
               <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Age</label>
               <InputField
-                type="number"
+                type="text"
                 placeholder="Age"
                 value={formData.age}
                 onChange={(e) => handleChange("age", e.target.value)}
+                required
               />
             </div>
             <div>
               <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Contact Number</label>
               <InputField
-                type="tel"
-                placeholder="Mobile Number"
+                type="text"
+                placeholder="10-digit Mobile Number"
                 value={formData.contact}
                 onChange={(e) => handleChange("contact", e.target.value)}
+                maxLength={10}
+                required
               />
             </div>
             <div style={{ gridColumn: "span 2" }}>
@@ -92,6 +138,7 @@ function BookingForm() {
                 placeholder="email@example.com"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
+                required
               />
             </div>
             <div style={{ gridColumn: "span 2" }}>
@@ -101,6 +148,8 @@ function BookingForm() {
                 placeholder="12-digit Aadhar ID"
                 value={formData.aadhar}
                 onChange={(e) => handleChange("aadhar", e.target.value)}
+                maxLength={12}
+                required
               />
             </div>
             <div style={{ gridColumn: "span 2", marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
@@ -116,9 +165,9 @@ function BookingForm() {
                 onChange={(e) => handleChange("roomType", e.target.value)}
                 style={{ background: "white" }}
               >
-                <option value="Standard">Standard Room - $150/night</option>
-                <option value="Deluxe">Deluxe Room - $250/night</option>
-                <option value="Suite">Presidential Suite - $500/night</option>
+                <option value="Standard">Standard Room - ₹4,500/night</option>
+                <option value="Deluxe">Deluxe Room - ₹7,500/night</option>
+                <option value="Suite">Presidential Suite - ₹15,000/night</option>
               </select>
             </div>
             <div>
@@ -127,6 +176,7 @@ function BookingForm() {
                 type="date"
                 value={formData.checkIn}
                 onChange={(e) => handleChange("checkIn", e.target.value)}
+                required
               />
             </div>
             <div>
@@ -135,6 +185,7 @@ function BookingForm() {
                 type="date"
                 value={formData.checkOut}
                 onChange={(e) => handleChange("checkOut", e.target.value)}
+                required
               />
             </div>
             <div style={{ gridColumn: "span 2" }}>
@@ -144,6 +195,7 @@ function BookingForm() {
                 placeholder="Number of Guests"
                 value={formData.totalMembers}
                 onChange={(e) => handleChange("totalMembers", e.target.value)}
+                required
               />
             </div>
             <div style={{ gridColumn: "span 2", marginTop: "1rem", display: "flex", gap: "1rem" }}>

@@ -1,4 +1,4 @@
-import Sidebar from "../../components/Sidebar";
+import { AdminWrapper } from "../admin/AdminManagementPages";
 import { Link, useNavigate } from "react-router-dom";
 
 function AdminDashboard() {
@@ -23,44 +23,8 @@ function AdminDashboard() {
   ];
 
   return (
-    <div className="admin-layout">
-      <Sidebar />
-      <main className="admin-main">
-        <header style={{ 
-          background: "white", 
-          padding: "1rem 2rem", 
-          borderBottom: "1px solid var(--border-color)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          position: "sticky",
-          top: 0,
-          zIndex: 10
-        }}>
-          <div>
-            <h2 style={{ margin: 0 }}>Dashboard</h2>
-          </div>
-          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-            <div style={{ position: "relative" }}>
-              <input 
-                type="text" 
-                placeholder="Search booking, room, etc" 
-                style={{ width: "300px", padding: "0.5rem 1rem", borderRadius: "20px", background: "#f1f5f9", border: "none" }} 
-              />
-            </div>
-            <Link to="/booking">
-              <button style={{ background: "var(--primary)", color: "white", border: "none", borderRadius: "8px", padding: "8px 16px", fontWeight: 600 }}>
-                + New Booking
-              </button>
-            </Link>
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <span>🔔</span>
-              <span>👤</span>
-            </div>
-          </div>
-        </header>
-
-        <div className="container">
+    <AdminWrapper title="Dashboard" subtitle="Welcome back to your overview" showSearch={true}>
+      <div className="container" style={{ padding: 0 }}>
           <section className="dashboard-grid" style={{ marginTop: 0 }}>
             {stats.map((stat, index) => (
               <div key={index} className="stat-card">
@@ -137,8 +101,7 @@ function AdminDashboard() {
             </div>
           </section>
         </div>
-      </main>
-    </div>
+    </AdminWrapper>
   );
 }
 

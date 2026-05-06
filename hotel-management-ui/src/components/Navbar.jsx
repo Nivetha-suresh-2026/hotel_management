@@ -18,12 +18,6 @@ function Navbar() {
         {userRole === "admin" && <Link to="/admin">Dashboard</Link>}
         {userRole === "owner" && <Link to="/owner">Owner Portal</Link>}
         {userRole === "admin" && <Link to="/booking">New Booking</Link>}
-        <button 
-          onClick={handleLogout}
-          style={{ background: "transparent", color: "var(--text-muted)", border: "none", boxShadow: "none", padding: "0 10px" }}
-        >
-          Logout
-        </button>
       </div>
     </nav>
   );
