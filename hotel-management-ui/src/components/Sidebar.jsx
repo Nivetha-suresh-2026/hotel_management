@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { PATHS } from "../routes/paths";
 
 function Sidebar() {
   const location = useLocation();
@@ -7,22 +8,22 @@ function Sidebar() {
   const userRole = localStorage.getItem("userRole");
 
   const adminMenu = [
-    { name: "Dashboard", path: "/admin", icon: "📊" },
-    { name: "Room Creation", path: "/admin/rooms", icon: "🏨" },
-    { name: "Branch Creation", path: "/admin/branches", icon: "📍" },
-    { name: "Staff Creation", path: "/admin/staff", icon: "👥" },
-    { name: "Department", path: "/admin/departments", icon: "🏢" },
-    { name: "Guest Details", path: "/admin/guests", icon: "📋" },
-    { name: "Staff Details", path: "/admin/staff-details", icon: "📝" },
+    { name: "Dashboard", path: PATHS.ADMIN_DASHBOARD, icon: "📊" },
+    { name: "Room Creation", path: PATHS.ADMIN_ROOMS, icon: "🏨" },
+    { name: "Branch Creation", path: PATHS.ADMIN_BRANCHES, icon: "📍" },
+    { name: "Staff Creation", path: PATHS.ADMIN_STAFF, icon: "👥" },
+    { name: "Department", path: PATHS.ADMIN_DEPARTMENTS, icon: "🏢" },
+    { name: "Guest Details", path: PATHS.ADMIN_GUESTS, icon: "📋" },
+    { name: "Staff Details", path: PATHS.ADMIN_STAFF_DETAILS, icon: "📝" },
   ];
 
   const ownerMenu = [
-    { name: "Overview", path: "/owner", icon: "📈" },
-    { name: "Revenue Analytics", path: "/owner/revenue", icon: "💰" },
-    { name: "Hotel Performance", path: "/owner/performance", icon: "🏨" },
-    { name: "Activity Logs", path: "/owner/activity", icon: "🕵️" },
-    { name: "Alerts", path: "/owner/alerts", icon: "🚨" },
-    { name: "Reviews", path: "/owner/reviews", icon: "⭐" },
+    { name: "Overview", path: PATHS.OWNER_DASHBOARD, icon: "📈" },
+    { name: "Revenue Analytics", path: PATHS.OWNER_REVENUE, icon: "💰" },
+    { name: "Hotel Performance", path: PATHS.OWNER_PERFORMANCE, icon: "🏨" },
+    { name: "Activity Logs", path: PATHS.OWNER_ACTIVITY, icon: "🕵️" },
+    { name: "Alerts", path: PATHS.OWNER_ALERTS, icon: "🚨" },
+    { name: "Reviews", path: PATHS.OWNER_REVIEWS, icon: "⭐" },
   ];
 
   const menuItems = userRole === "admin" ? adminMenu : ownerMenu;

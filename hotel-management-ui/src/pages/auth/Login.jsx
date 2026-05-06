@@ -26,7 +26,7 @@ function Login() {
 
     // Mock navigation and store role
     localStorage.setItem("userRole", role);
-    if (role === "admin") navigate(PATHS.ADMIN_HOME);
+    if (role === "admin") navigate(PATHS.ADMIN_DASHBOARD);
     else navigate(PATHS.OWNER_DASHBOARD);
   };
 

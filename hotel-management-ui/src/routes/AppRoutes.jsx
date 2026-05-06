@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PATHS } from "./paths";
 
 import Login from "../pages/auth/Login";
@@ -11,9 +11,7 @@ import {
   StaffCreation, 
   DepartmentManagement, 
   GuestDetails, 
-  StaffDetails,
-  AdminHub,
-  CreationHub
+  StaffDetails
 } from "../pages/admin/AdminManagementPages";
 
 import { 
@@ -29,9 +27,9 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path={PATHS.LOGIN} element={<Login />} />
-        <Route path={PATHS.ADMIN_HOME} element={<AdminHub />} />
+        <Route path="/admin" element={<Navigate to={PATHS.ADMIN_DASHBOARD} replace />} />
         <Route path={PATHS.ADMIN_DASHBOARD} element={<AdminDashboard />} />
-        <Route path={PATHS.ADMIN_CREATION} element={<CreationHub />} />
+
         <Route path={PATHS.ADMIN_ROOMS} element={<RoomCreation />} />
         <Route path={PATHS.ADMIN_BRANCHES} element={<BranchCreation />} />
         <Route path={PATHS.ADMIN_STAFF} element={<StaffCreation />} />

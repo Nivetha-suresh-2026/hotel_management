@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { PATHS } from "../../routes/paths";
 import { ADMIN_HUB_MODULES, CREATION_HUB_MODULES } from "../../routes/navigation";
 import Sidebar from "../../components/Sidebar";
+import { supabase } from "../../lib/supabaseClient";
 
 export const AdminWrapper = ({ title, subtitle, children, notification, showSearch, breadcrumbs }) => {
   const [showProfile, setShowProfile] = React.useState(false);
@@ -73,12 +74,7 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
             )}
 
             <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-              <button 
-                onClick={() => navigate(PATHS.ADMIN_HOME)}
-                style={{ background: "transparent", color: "#64748b", border: "none", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer" }}
-              >
-                Home
-              </button>
+
               <Link to={PATHS.BOOKING}>
                 <button style={{ background: "var(--primary)", color: "white", border: "none", borderRadius: "10px", padding: "0.625rem 1.25rem", fontWeight: 600, fontSize: "0.875rem" }}>
                   + New Booking
@@ -178,11 +174,26 @@ export const BranchCreation = () => {
   const [branches, setBranches] = React.useState([]);
   const [notification, setNotification] = React.useState(null);
   const [editingId, setEditingId] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    const savedBranches = JSON.parse(localStorage.getItem("branches") || "[]");
-    setBranches(savedBranches);
+    fetchBranches();
   }, []);
+
+  const fetchBranches = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('hotel_branches')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching branches:", error);
+    } else {
+      setBranches(data);
+    }
+    setLoading(false);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -194,7 +205,7 @@ export const BranchCreation = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.branchName || !formData.location || !formData.endFloor || !formData.contactNumber) {
       setNotification({ type: "error", message: "Please fill all fields" });
@@ -206,50 +217,106 @@ export const BranchCreation = () => {
       return;
     }
 
-    if (editingId) {
-      const updatedBranches = branches.map(b => b.id === editingId ? { ...formData, id: editingId } : b);
-      localStorage.setItem("branches", JSON.stringify(updatedBranches));
-      setBranches(updatedBranches);
-      setEditingId(null);
-      setNotification({ type: "success", message: "Branch updated successfully!" });
-    } else {
-      const newBranch = { ...formData, id: Date.now() };
-      const updatedBranches = [...branches, newBranch];
-      localStorage.setItem("branches", JSON.stringify(updatedBranches));
-      setBranches(updatedBranches);
-      setNotification({ type: "success", message: "Branch created successfully!" });
-    }
+    setLoading(true);
+    const payload = {
+      branch_name: formData.branchName,
+      location: formData.location,
+      start_floor: parseInt(formData.startFloor),
+      end_floor: parseInt(formData.endFloor),
+      contact_number: formData.contactNumber,
+      status: 'Active'
+    };
 
-    setFormData({
-      branchName: "",
-      location: "",
-      startFloor: 0,
-      endFloor: "",
-      contactNumber: ""
-    });
-    setTimeout(() => setNotification(null), 3000);
+    try {
+      if (editingId) {
+        const { error } = await supabase
+          .from('hotel_branches')
+          .update(payload)
+          .eq('id', editingId);
+
+        if (error) throw error;
+        setNotification({ type: "success", message: "Branch updated successfully!" });
+        setEditingId(null);
+      } else {
+        const { error } = await supabase
+          .from('hotel_branches')
+          .insert([payload]);
+
+        if (error) throw error;
+        setNotification({ type: "success", message: "Branch created successfully!" });
+      }
+      
+      setFormData({ branchName: "", location: "", startFloor: 0, endFloor: "", contactNumber: "" });
+      fetchBranches();
+    } catch (error) {
+      setNotification({ type: "error", message: `Error: ${error.message}` });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
   const handleEditBranch = (branch) => {
     setFormData({
-      branchName: branch.branchName,
+      branchName: branch.branch_name,
       location: branch.location,
-      startFloor: branch.startFloor,
-      endFloor: branch.endFloor,
-      contactNumber: branch.contactNumber
+      startFloor: branch.start_floor,
+      endFloor: branch.end_floor,
+      contactNumber: branch.contact_number
     });
     setEditingId(branch.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDeleteBranch = (id) => {
+  const handleDeleteBranch = async (id) => {
     if (window.confirm("Are you sure you want to delete this branch?")) {
-      const updatedBranches = branches.filter(b => b.id !== id);
-      localStorage.setItem("branches", JSON.stringify(updatedBranches));
-      setBranches(updatedBranches);
-      setNotification({ type: "success", message: "Branch deleted successfully!" });
+      setLoading(true);
+      const { error } = await supabase
+        .from('hotel_branches')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        setNotification({ type: "error", message: `Delete failed: ${error.message}` });
+      } else {
+        setNotification({ type: "success", message: "Branch deleted successfully!" });
+        fetchBranches();
+      }
+      setLoading(false);
       setTimeout(() => setNotification(null), 3000);
     }
+  };
+
+  const handleSyncLocalData = async () => {
+    const localBranches = JSON.parse(localStorage.getItem("branches") || "[]");
+    if (localBranches.length === 0) {
+      setNotification({ type: "error", message: "No local data found to sync" });
+      return;
+    }
+
+    setLoading(true);
+    const payloads = localBranches.map(b => ({
+      branch_name: b.branchName,
+      location: b.location,
+      start_floor: parseInt(b.startFloor),
+      end_floor: parseInt(b.endFloor),
+      contact_number: b.contactNumber,
+      status: 'Active'
+    }));
+
+    const { error } = await supabase
+      .from('hotel_branches')
+      .insert(payloads);
+
+    if (error) {
+      setNotification({ type: "error", message: `Sync failed: ${error.message}` });
+    } else {
+      setNotification({ type: "success", message: `Successfully synced ${localBranches.length} branches!` });
+      localStorage.removeItem("branches");
+      fetchBranches();
+    }
+    setLoading(false);
+    setTimeout(() => setNotification(null), 3000);
   };
 
   return (
@@ -257,7 +324,7 @@ export const BranchCreation = () => {
       title="Branch Creation" 
       subtitle="Register and manage your hotel property locations"
       notification={notification}
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Creation", path: PATHS.ADMIN_CREATION }, { label: "Branches" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Branches" }]}
     >
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", alignItems: "start" }}>
         <div className="card" style={{ boxShadow: "var(--shadow-premium)", border: "1px solid #f1f5f9" }}>
@@ -453,7 +520,7 @@ export const RoomCreation = () => {
       title="Room Setup" 
       subtitle="Configure room units, types, and floor assignments"
       notification={notification}
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Creation", path: PATHS.ADMIN_CREATION }, { label: "Rooms" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Rooms" }]}
     >
       <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -718,7 +785,7 @@ export const StaffCreation = () => {
       title="Staff Enrollment" 
       subtitle="Onboard new employees and assign roles"
       notification={notification}
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Creation", path: PATHS.ADMIN_CREATION }, { label: "Staff Enrollment" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Staff Enrollment" }]}
     >
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", alignItems: "start" }}>
         <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
@@ -873,7 +940,7 @@ export const DepartmentManagement = () => {
       title="Department Management" 
       subtitle="Define organizational structure and units"
       notification={notification}
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Creation", path: PATHS.ADMIN_CREATION }, { label: "Departments" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Departments" }]}
     >
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", alignItems: "start" }}>
         <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
@@ -987,7 +1054,7 @@ export const GuestDetails = () => {
     <AdminWrapper 
       title="Guest Directory" 
       subtitle="Search and view historical guest records"
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Guests" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Guests" }]}
     >
       <div className="card" style={{ padding: 0, overflow: "hidden", boxShadow: "var(--shadow-premium)" }}>
         <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid var(--border-color)", background: "#fcfcfc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1108,7 +1175,7 @@ export const StaffDetails = () => {
     <AdminWrapper 
       title="Staff Directory" 
       subtitle="Comprehensive view of all active employees"
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Staff Directory" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Staff Directory" }]}
     >
       <div className="card" style={{ marginBottom: "2rem", background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "var(--shadow-premium)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "1.5rem", alignItems: "end" }}>
@@ -1271,132 +1338,3 @@ export const HubBanner = ({ title, subtitle, imageUrl }) => {
   );
 };
 
-export const AdminHub = () => {
-  const [stats, setStats] = React.useState({
-    staffCount: 0,
-    guestsToday: 0,
-    checkIn: 0,
-    checkOut: 0,
-    cashCollection: 0
-  });
-
-  React.useEffect(() => {
-    const staff = JSON.parse(localStorage.getItem("staff") || "[]");
-    const bookings = JSON.parse(localStorage.getItem("bookings") || "[]");
-    const today = new Date().toISOString().split('T')[0];
-
-    const todayBookings = bookings.filter(b => b.checkIn === today || b.checkOut === today);
-    const checkIns = bookings.filter(b => b.checkIn === today).length;
-    const checkOuts = bookings.filter(b => b.checkOut === today).length;
-    const totalCash = bookings
-      .filter(b => b.checkIn === today)
-      .reduce((sum, b) => sum + (parseFloat(b.price) || 0), 0);
-
-    setStats({
-      staffCount: staff.length,
-      guestsToday: bookings.filter(b => b.status === "Confirmed").length,
-      checkIn: checkIns,
-      checkOut: checkOuts,
-      cashCollection: totalCash
-    });
-  }, []);
-
-  const statCards = [
-    { title: "Total Staff", value: stats.staffCount, icon: "👥", color: "#6366f1", trend: "+2 this month" },
-    { title: "Guests Today", value: stats.guestsToday, icon: "🏨", color: "#10b981", trend: "+5% from yesterday" },
-    { title: "Today Check-In", value: stats.checkIn, icon: "🔑", color: "#3b82f6", trend: "On schedule" },
-    { title: "Today Check-Out", value: stats.checkOut, icon: "🚪", color: "#f43f5e", trend: "3 pending" },
-    { title: "Today Cash Collection", value: `₹${stats.cashCollection.toLocaleString()}`, icon: "💰", color: "#f59e0b", trend: "High volume" }
-  ];
-
-  return (
-    <AdminWrapper 
-      title="Business Insights" 
-      subtitle="Real-time operational metrics and performance"
-      showSearch={true}
-    >
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem" }}>
-        {statCards.map((stat, i) => (
-          <div key={i} className="card" style={{ 
-            padding: "1.75rem", 
-            borderTop: `4px solid ${stat.color}`,
-            borderRadius: "12px",
-            background: "white",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1rem"
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>{stat.title}</div>
-              <div style={{ fontSize: "1.5rem" }}>{stat.icon}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "2rem", fontWeight: "800", color: "#1e293b" }}>{stat.value}</div>
-              <div style={{ fontSize: "0.75rem", color: stat.color, fontWeight: "600", marginTop: "4px" }}>{stat.trend}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: "2.5rem", display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
-        <div className="card" style={{ padding: "2rem", borderRadius: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-            <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: "700" }}>Recent Activity</h3>
-            <span style={{ fontSize: "0.75rem", color: "var(--primary)", fontWeight: "700", cursor: "pointer" }}>View All</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            {[
-              { text: "New staff member 'Anita' enrolled", time: "10 mins ago", icon: "👤", color: "#6366f1" },
-              { text: "Booking #4421 confirmed for Room 302", time: "25 mins ago", icon: "✅", color: "#10b981" },
-              { text: "Maintenance alert: Room 105 AC check", time: "1 hour ago", icon: "⚠️", color: "#f59e0b" }
-            ].map((item, i) => (
-              <div key={i} style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: `${item.color}15`, color: item.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>{item.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>{item.text}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{item.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: "2rem", borderRadius: "16px", background: "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)", color: "white", border: "none" }}>
-          <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: "700" }}>System Status</h3>
-          <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.7)", marginTop: "0.5rem" }}>All services are running smoothly.</p>
-          <div style={{ marginTop: "2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem" }}>
-              <span>Server Load</span>
-              <span style={{ fontWeight: "700" }}>24%</span>
-            </div>
-            <div style={{ height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px" }}>
-              <div style={{ width: "24%", height: "100%", background: "#10b981", borderRadius: "3px" }}></div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginTop: "0.5rem" }}>
-              <span>Storage</span>
-              <span style={{ fontWeight: "700" }}>62%</span>
-            </div>
-            <div style={{ height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px" }}>
-              <div style={{ width: "62%", height: "100%", background: "#f59e0b", borderRadius: "3px" }}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AdminWrapper>
-  );
-};
-
-export const CreationHub = () => {
-  return (
-    <AdminWrapper 
-      title="Creation Center" 
-      subtitle="Setup your core hotel infrastructure"
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_HOME }, { label: "Creation" }]}
-    >
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.5rem" }}>
-        {CREATION_HUB_MODULES.map((m, i) => <HubCard key={i} {...m} />)}
-      </div>
-    </AdminWrapper>
-  );
-};

@@ -2,9 +2,7 @@ export const PATHS = {
   LOGIN: "/",
   
   // Admin Routes
-  ADMIN_HOME: "/admin/home",
   ADMIN_DASHBOARD: "/admin/dashboard",
-  ADMIN_CREATION: "/admin/creation",
   ADMIN_ROOMS: "/admin/rooms",
   ADMIN_BRANCHES: "/admin/branches",
   ADMIN_STAFF: "/admin/staff",
