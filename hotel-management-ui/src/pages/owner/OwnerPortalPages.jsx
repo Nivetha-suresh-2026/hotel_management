@@ -23,7 +23,5 @@ function OwnerPlaceholder({ title }) {
 }
 
 export const RevenueAnalytics = () => <OwnerPlaceholder title="Revenue Analytics" />;
-export const HotelPerformance = () => <OwnerPlaceholder title="Hotel Performance" />;
-export const ActivityLogs = () => <OwnerPlaceholder title="Admin Activity Logs" />;
 export const Alerts = () => <OwnerPlaceholder title="System Alerts" />;
 export const Reviews = () => <OwnerPlaceholder title="Guest Reviews" />;

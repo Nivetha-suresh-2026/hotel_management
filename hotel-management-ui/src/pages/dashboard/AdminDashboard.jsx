@@ -1,5 +1,5 @@
 import React from "react";
-import { AdminWrapper } from "../admin/AdminManagementPages";
+import { AdminWrapper } from "../admin/AdminWrapper";
 import { Link, useNavigate } from "react-router-dom";
 
 function AdminDashboard() {

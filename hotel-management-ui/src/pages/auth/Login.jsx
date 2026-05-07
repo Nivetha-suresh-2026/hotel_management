@@ -5,13 +5,16 @@ import InputField from "../../components/InputField";
 import Button from "../../components/Button";
 import loginBg from "../../assets/login-bg.png";
 import { PATHS } from "../../routes/paths";
+import { supabase } from "../../lib/supabaseClient";
 
 function Login() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     if (!validateEmail(email)) {
@@ -24,10 +27,50 @@ function Login() {
       return;
     }
 
-    // Mock navigation and store role
-    localStorage.setItem("userRole", role);
-    if (role === "admin") navigate(PATHS.ADMIN_DASHBOARD);
-    else navigate(PATHS.OWNER_DASHBOARD);
+    setLoading(true);
+
+    try {
+      // 1. Check for Hardcoded Owner Login
+      if (role === "owner") {
+        const hardcodedOwner = {
+          email: "owner@hostay.com",
+          password: "owner123"
+        };
+
+        if (email === hardcodedOwner.email && password === hardcodedOwner.password) {
+          localStorage.setItem("userRole", "owner");
+          navigate(PATHS.OWNER_DASHBOARD);
+          return;
+        } else {
+          alert("Invalid credentials for Hotel Owner.");
+          return;
+        }
+      }
+
+      // 2. Real Auth for Admin (Supabase)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      const userRole = data.user.raw_user_meta_data?.role;
+
+      if (userRole !== "admin") {
+        alert("Access Denied: This account is not registered as an Administrator.");
+        await supabase.auth.signOut();
+        return;
+      }
+
+      localStorage.setItem("userRole", "admin");
+      navigate(PATHS.ADMIN_DASHBOARD);
+      
+    } catch (error) {
+      alert(`Login failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -93,6 +136,16 @@ function Login() {
               placeholder="name@hostay.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b" }}>Password</label>
+            <InputField
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 

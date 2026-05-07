@@ -17,6 +17,7 @@ export const PATHS = {
   OWNER_ACTIVITY: "/owner/activity",
   OWNER_ALERTS: "/owner/alerts",
   OWNER_REVIEWS: "/owner/reviews",
+  OWNER_USERS: "/owner/users",
 
   // Common
   BOOKING: "/booking"

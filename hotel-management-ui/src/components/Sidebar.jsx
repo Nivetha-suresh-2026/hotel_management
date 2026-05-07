@@ -19,11 +19,9 @@ function Sidebar() {
 
   const ownerMenu = [
     { name: "Overview", path: PATHS.OWNER_DASHBOARD, icon: "📈" },
-    { name: "Revenue Analytics", path: PATHS.OWNER_REVENUE, icon: "💰" },
     { name: "Hotel Performance", path: PATHS.OWNER_PERFORMANCE, icon: "🏨" },
     { name: "Activity Logs", path: PATHS.OWNER_ACTIVITY, icon: "🕵️" },
-    { name: "Alerts", path: PATHS.OWNER_ALERTS, icon: "🚨" },
-    { name: "Reviews", path: PATHS.OWNER_REVIEWS, icon: "⭐" },
+    { name: "Role Allocation", path: PATHS.OWNER_USERS, icon: "🔑" },
   ];
 
   const menuItems = userRole === "admin" ? adminMenu : ownerMenu;
