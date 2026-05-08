@@ -28,34 +28,35 @@ const HotelPerformance = () => {
     try {
       setLoading(true);
 
-      const { data: rooms, error: roomError } = await supabase
-        .from('rooms')
-        .select(`*, hotel_branches!fk_branch(branch_name)`);
-      
-      if (roomError) throw roomError;
-      setAllRooms(rooms);
+      const [roomsRes, branchRes, userRes, staffRes, bookingRes] = await Promise.all([
+        supabase.from('rooms').select(`*, hotel_branches!fk_branch(branch_name)`),
+        supabase.from('hotel_branches').select('*'),
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('staff').select('*', { count: 'exact' }).eq('status', 'active'),
+        supabase.from('bookings').select('*, hotel_branches!bookings_branch_fkey(branch_name)')
+      ]);
 
-      const { data: branches, error: branchError } = await supabase
-        .from('hotel_branches')
-        .select('*');
-      
-      if (branchError) throw branchError;
+      if (roomsRes.error) throw roomsRes.error;
+      if (branchRes.error) throw branchRes.error;
+
+      const rooms = roomsRes.data;
+      const branches = branchRes.data;
+      const adminCount = userRes.count;
+      const activeStaff = staffRes.count;
+      const bookings = bookingRes.data || [];
+
+      setAllRooms(rooms);
       setAllBranches(branches);
 
-      // Fetch admin count
-      const { count: adminCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-
-      const staffList = JSON.parse(localStorage.getItem("staff") || "[]");
-      const activeStaff = staffList.filter(s => s.status === "Active").length;
-
-      const bookings = JSON.parse(localStorage.getItem("bookings") || "[]");
-      
       const occupancyByBranch = branches.map(branch => {
         const branchRooms = rooms.filter(r => r.branch_id === branch.id);
         const total = branchRooms.length || 0;
-        const occupiedCount = Math.min(total, bookings.filter(b => b.branchName === branch.branch_name).length || Math.floor(Math.random() * (total + 1))); 
+        
+        // Count active bookings for this branch (reserved or checked_in)
+        const occupiedCount = bookings.filter(b => 
+          b.branch_id === branch.id && 
+          (b.status === 'reserved' || b.status === 'checked_in')
+        ).length;
         
         const roomTypes = branchRooms.reduce((acc, curr) => {
           acc[curr.room_type] = (acc[curr.room_type] || 0) + 1;
@@ -67,7 +68,7 @@ const HotelPerformance = () => {
           name: branch.branch_name,
           total: total,
           occupied: occupiedCount,
-          available: total - occupiedCount,
+          available: Math.max(0, total - occupiedCount),
           roomTypes: Object.entries(roomTypes).map(([type, count]) => ({ type, count }))
         };
       });
@@ -75,13 +76,18 @@ const HotelPerformance = () => {
       const totalOccupied = occupancyByBranch.reduce((acc, curr) => acc + curr.occupied, 0);
 
       setStats({
-        staffPresent: activeStaff,
+        staffPresent: activeStaff || 0,
         roomsOccupied: totalOccupied,
         activeAdmins: adminCount || 0
       });
 
       setBranchData(occupancyByBranch);
-      if (occupancyByBranch.length > 0) setSelectedBranch(occupancyByBranch[0]);
+      if (occupancyByBranch.length > 0) {
+        setSelectedBranch(prev => {
+          const updated = occupancyByBranch.find(b => b.id === prev?.id);
+          return updated || occupancyByBranch[0];
+        });
+      }
 
     } catch (error) {
       console.error("Error fetching performance data:", error);

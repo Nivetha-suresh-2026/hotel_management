@@ -1,5 +1,6 @@
 export const PATHS = {
   LOGIN: "/",
+  SIGNUP: "/signup",
   
   // Admin Routes
   ADMIN_DASHBOARD: "/admin/dashboard",

@@ -9,10 +9,10 @@ function Sidebar() {
 
   const adminMenu = [
     { name: "Dashboard", path: PATHS.ADMIN_DASHBOARD, icon: "📊" },
-    { name: "Room Creation", path: PATHS.ADMIN_ROOMS, icon: "🏨" },
     { name: "Branch Creation", path: PATHS.ADMIN_BRANCHES, icon: "📍" },
-    { name: "Staff Creation", path: PATHS.ADMIN_STAFF, icon: "👥" },
+    { name: "Room Creation", path: PATHS.ADMIN_ROOMS, icon: "🏨" },
     { name: "Department", path: PATHS.ADMIN_DEPARTMENTS, icon: "🏢" },
+    { name: "Staff Creation", path: PATHS.ADMIN_STAFF, icon: "👥" },
     { name: "Guest Details", path: PATHS.ADMIN_GUESTS, icon: "📋" },
     { name: "Staff Details", path: PATHS.ADMIN_STAFF_DETAILS, icon: "📝" },
   ];

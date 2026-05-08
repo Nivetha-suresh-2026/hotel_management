@@ -350,7 +350,18 @@ export const RoomCreation = () => {
 
     setLoading(true);
     try {
+      // 1. Get the current user's profile ID from public.users
+      // Note: we need the 'id' column, not the 'auth_id' column
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error("Could not retrieve your user profile. Please re-login.");
+      }
 
       const payload = {
         branch_id: formData.branchId,
@@ -358,8 +369,8 @@ export const RoomCreation = () => {
         room_number: formData.roomNumber,
         room_type: formData.roomType,
         bed_count: parseInt(formData.bedCount) || 1,
-        features: formData.features.join(", "), // Save as comma-separated text
-        created_by: user.id
+        features: formData.features.join(", "),
+        created_by: profile.id // Use the public.users.id
       };
 
       if (editingId) {
@@ -400,7 +411,7 @@ export const RoomCreation = () => {
 
   return (
     <AdminWrapper title="Room Setup" subtitle="Configure inventory and amenities" notification={notification}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2.5fr", gap: "2rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", alignItems: "start" }}>
         {/* Creation Form */}
         <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
           <SectionHeader title="Room Details" subtitle="Enter room specifications" />
@@ -459,7 +470,94 @@ export const RoomCreation = () => {
           </form>
         </div>
 
-        {/* Table UI continues... */}
+        {/* Room Inventory Table */}
+        <div className="card" style={{ padding: 0, overflow: "hidden", boxShadow: "var(--shadow-premium)" }}>
+          <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid #e2e8f0", background: "#fcfcfc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: "700" }}>Room Inventory</h4>
+              <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8125rem", color: "var(--text-muted)" }}>{rooms.length} rooms registered</p>
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: "600", color: "#6366f1", background: "#eef2ff", padding: "4px 10px", borderRadius: "12px" }}>
+                Live Database
+              </span>
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            {rooms.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
+                <p style={{ color: "#94a3b8" }}>No rooms found in the selected inventory.</p>
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                    <th style={{ padding: "1rem 2rem", color: "#64748b", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Room Details</th>
+                    <th style={{ padding: "1rem 2rem", color: "#64748b", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Branch</th>
+                    <th style={{ padding: "1rem 2rem", color: "#64748b", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Type</th>
+                    <th style={{ padding: "1rem 2rem", color: "#64748b", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Features</th>
+                    <th style={{ padding: "1rem 2rem", color: "#64748b", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rooms.map(room => (
+                    <tr key={room.id} style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.2s" }} className="table-row-hover">
+                      <td style={{ padding: "1.25rem 2rem" }}>
+                        <div style={{ fontWeight: "800", color: "#1e293b", fontSize: "1rem" }}>#{room.room_number}</div>
+                        <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "600" }}>Floor {room.floor_number}</div>
+                      </td>
+                      <td style={{ padding: "1.25rem 2rem" }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: "600", color: "#475569" }}>{room.hotel_branches?.branch_name}</div>
+                      </td>
+                      <td style={{ padding: "1.25rem 2rem" }}>
+                        <span style={{ 
+                          padding: "4px 10px", 
+                          borderRadius: "8px", 
+                          background: room.room_type === "AC" ? "#dcfce7" : "#f1f5f9", 
+                          color: room.room_type === "AC" ? "#15803d" : "#475569",
+                          fontSize: "0.7rem", 
+                          fontWeight: "800" 
+                        }}>{room.room_type}</span>
+                        <div style={{ fontSize: "0.65rem", color: "#94a3b8", marginTop: "4px" }}>{room.bed_count} Beds</div>
+                      </td>
+                      <td style={{ padding: "1.25rem 2rem" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", maxWidth: "200px" }}>
+                          {room.features && room.features.split(", ").map(f => (
+                            <span key={f} style={{ fontSize: "0.6rem", background: "#f0f9ff", color: "#0369a1", padding: "2px 6px", borderRadius: "4px", border: "1px solid #bae6fd", fontWeight: "600" }}>{f}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: "1.25rem 2rem", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                          <button 
+                            onClick={() => handleEditRoom(room)}
+                            style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s" }}
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm("Delete this room?")) {
+                                const { error } = await supabase.from('rooms').delete().eq('id', room.id);
+                                if (!error) fetchRooms();
+                              }
+                            }}
+                            style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s" }}
+                            title="Delete"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
     </AdminWrapper>
   );

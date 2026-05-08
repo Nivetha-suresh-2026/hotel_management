@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PATHS } from "./paths";
 
 import Login from "../pages/auth/Login";
+import Signup from "../pages/auth/Signup";
 import AdminDashboard from "../pages/dashboard/AdminDashboard";
 import OwnerDashboard from "../pages/dashboard/OwnerDashboard";
 import BookingForm from "../pages/bookings/BookingForm";
@@ -28,6 +29,7 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path={PATHS.LOGIN} element={<Login />} />
+        <Route path={PATHS.SIGNUP} element={<Signup />} />
         <Route path="/admin" element={<Navigate to={PATHS.ADMIN_DASHBOARD} replace />} />
         <Route path={PATHS.ADMIN_DASHBOARD} element={<AdminDashboard />} />
 

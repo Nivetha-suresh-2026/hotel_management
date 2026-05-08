@@ -39,36 +39,44 @@ export const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setNotification(null);
 
     try {
-      // 1. Call the custom RPC function to create the auth user
-      const { data: userId, error: rpcError } = await supabase.rpc('create_admin_user', {
-        email: formData.email,
-        password: formData.password,
-        full_name: formData.name
+      // Call the PostgreSQL RPC function with updated parameter names (p_ prefix)
+      const { data, error } = await supabase.rpc('create_admin_user', {
+        p_email: formData.email,
+        p_password: formData.password,
+        p_full_name: formData.name
       });
 
-      if (rpcError) throw rpcError;
+      // Check for both Supabase errors and custom SQL function errors
+      if (error) throw error;
+      if (data && data.success === false) throw new Error(data.message || 'Failed to create user');
 
-      // 2. The trigger on_auth_user_created (from previous step) 
-      // will handle the public.users insertion automatically.
-
-      setNotification({ type: "success", message: `Admin account for ${formData.name} created successfully!` });
+      setNotification({
+        type: "success",
+        message: `Admin account for ${formData.name} created successfully!`
+      });
+      
       setFormData({ name: "", email: "", password: "", role: "admin" });
-      fetchUsers();
+      fetchUsers(); // Refresh the list
     } catch (error) {
-      setNotification({ type: "error", message: error.message });
+      setNotification({
+        type: "error",
+        message: `Error: ${error.message}`
+      });
     } finally {
       setLoading(false);
       setTimeout(() => setNotification(null), 4000);
     }
   };
 
+
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to revoke access for this user? This will delete their authentication account.")) return;
 
-    // In a real app, you'd use another RPC to delete from auth.users
-    // For now, we'll just delete from public.users which triggers cascade
+    // Delete from public.users which triggers cascade to auth.users if set up correctly,
+    // or we might need another RPC for auth deletion.
     const { error } = await supabase.from('users').delete().eq('id', id);
 
     if (error) {
@@ -79,6 +87,8 @@ export const UserManagement = () => {
     }
   };
 
+
+
   return (
     <AdminWrapper
       title="User Management"
@@ -87,53 +97,57 @@ export const UserManagement = () => {
     >
       <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "2.5rem", alignItems: "start" }}>
         {/* Creation Form */}
-        <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
-          <SectionHeader title="Register Admin" subtitle="Create new administrator credentials" />
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <div className="form-group">
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Full Name</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="e.g. John Doe"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Email Address</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="admin@hostay.com"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Minimum 6 characters"
-                required
-                minLength={6}
-              />
-            </div>
-            <div className="form-group">
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Assigned Role</label>
-              <select name="role" value={formData.role} onChange={handleChange} style={{ background: "#f8fafc" }}>
-                <option value="admin">Administrator</option>
-              </select>
-            </div>
-            <button type="submit" disabled={loading} style={{ padding: "1rem", marginTop: "0.5rem" }}>
-              {loading ? "Creating Account..." : "Create Admin Account"}
-            </button>
-          </form>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+          <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
+            <SectionHeader title="Register Admin" subtitle="Create new administrator credentials" />
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Full Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="e.g. John Doe"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Email Address</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="admin@hostay.com"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Minimum 6 characters"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Assigned Role</label>
+                <select name="role" value={formData.role} onChange={handleChange} style={{ background: "#f8fafc" }}>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+              <button type="submit" disabled={loading} style={{ padding: "1rem", marginTop: "0.5rem" }}>
+                {loading ? "Creating Account..." : "Create Admin Account"}
+              </button>
+            </form>
+          </div>
+
+
         </div>
 
         {/* Users Table */}
@@ -155,7 +169,7 @@ export const UserManagement = () => {
                 {users.map(user => (
                   <tr key={user.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                     <td style={{ padding: "1.25rem 2.5rem" }}>
-                      <div style={{ fontWeight: "700", color: "#1e293b" }}>{user.full_name || user.name}</div>
+                      <div style={{ fontWeight: "700", color: "#1e293b" }}>{user.name}</div>
                       <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{user.email}</div>
                     </td>
                     <td style={{ padding: "1.25rem 2.5rem" }}>
