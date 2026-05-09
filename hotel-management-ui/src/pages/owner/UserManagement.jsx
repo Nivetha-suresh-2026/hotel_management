@@ -42,12 +42,23 @@ export const UserManagement = () => {
     setNotification(null);
 
     try {
+      // Log session first to verify owner is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Current session uid:', session?.user?.id);
+      console.log('Current session role:', session?.user?.user_metadata?.role);
+
+      if (!session) {
+        throw new Error('No active session. Please login again.');
+      }
+
       // Call the PostgreSQL RPC function with updated parameter names (p_ prefix)
       const { data, error } = await supabase.rpc('create_admin_user', {
         p_email: formData.email,
         p_password: formData.password,
         p_full_name: formData.name
       });
+
+      console.log('RPC response:', data, error);
 
       // Check for both Supabase errors and custom SQL function errors
       if (error) throw error;
@@ -57,10 +68,11 @@ export const UserManagement = () => {
         type: "success",
         message: `Admin account for ${formData.name} created successfully!`
       });
-      
+
       setFormData({ name: "", email: "", password: "", role: "admin" });
       fetchUsers(); // Refresh the list
     } catch (error) {
+      console.error('Full error:', error);
       setNotification({
         type: "error",
         message: `Error: ${error.message}`

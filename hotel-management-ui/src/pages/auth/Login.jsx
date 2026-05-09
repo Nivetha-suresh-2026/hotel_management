@@ -28,7 +28,10 @@ function Login() {
     setLoading(true);
 
     try {
-      // STEP 1: Sign in with Supabase — establishes real JWT session
+      // STEP 0: Force clear any existing stale session
+      await supabase.auth.signOut();
+
+      // STEP 1: Sign in
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({ email, password });
 
@@ -39,50 +42,49 @@ function Login() {
 
       console.log("✅ Auth success, user id:", authData.user.id);
 
-      // STEP 2: Fetch profile from public.users using auth_id
-      const { data: profile, error: profileError } = await supabase
-        .from("users")
-        .select("id, role, name, email")
-        .eq("auth_id", authData.user.id)
-        .single();
+      // STEP 2: Use RPC instead of direct table query (avoids RLS recursion)
+      const { data: userRole, error: roleError } = 
+        await supabase.rpc('get_my_role');
 
-      console.log("Profile fetch result:", profile, profileError);
+      console.log("Role fetch result:", userRole, roleError);
 
-      if (profileError) {
-        alert(`Profile error: ${profileError.message}`);
+      if (roleError) {
+        alert(`Profile error: ${roleError.message}`);
         await supabase.auth.signOut();
         return;
       }
 
-      if (!profile) {
+      if (!userRole) {
         alert("No profile found for this account.");
         await supabase.auth.signOut();
         return;
       }
 
-      // STEP 3: Match selected role vs DB role
+      // STEP 3: Map DB role to app role
       let dbRole = "";
-
-      if (profile.role === "hotel_owner") {
-        dbRole = "owner";
-      } else if (profile.role === "admin") {
-        dbRole = "admin";
-      } else {
+      if (userRole === "hotel_owner") dbRole = "owner";
+      else if (userRole === "admin")  dbRole = "admin";
+      else {
         alert("Invalid role in database.");
         await supabase.auth.signOut();
         return;
       }
 
+      // STEP 4: Match selected role vs DB role
       if (role !== dbRole) {
         alert(`Access Denied: Your account role is "${dbRole}" but you selected "${role}".`);
         await supabase.auth.signOut();
         return;
       }
 
-      // STEP 4: Save to localStorage and navigate
-      localStorage.setItem("userRole", dbRole);
-      localStorage.setItem("userId", authData.user.id);
-      localStorage.setItem("userProfile", JSON.stringify(profile));
+      // STEP 5: Save to localStorage and navigate
+      localStorage.setItem("userRole",  dbRole);
+      localStorage.setItem("userId",    authData.user.id);
+      localStorage.setItem("userName",
+        authData.user.user_metadata?.full_name ||
+        authData.user.email.split('@')[0]
+      );
+      localStorage.setItem("userEmail", authData.user.email);
 
       if (dbRole === "owner") {
         navigate(PATHS.OWNER_DASHBOARD);
@@ -91,7 +93,9 @@ function Login() {
       }
 
     } catch (err) {
-      alert(`System Error: ${err.message}`);
+      console.error("Login Error Object:", err);
+      const errorMsg = err.message || JSON.stringify(err);
+      alert(`System Error: ${errorMsg}\n\nNote: If this is a 500 error, please check the Supabase Status page as it may be a service outage.`);
     } finally {
       setLoading(false);
     }
