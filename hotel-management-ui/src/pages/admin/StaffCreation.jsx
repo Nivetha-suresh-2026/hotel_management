@@ -15,12 +15,13 @@ export const StaffCreation = () => {
     employmentType: "Full Time",
     branchId: "",
     departmentId: "",
-    role: "Receptionist",
+    role: "",
     shift: "Morning",
     status: "active"
   });
   const [branches, setBranches] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [jobRoles, setJobRoles] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -31,13 +32,15 @@ export const StaffCreation = () => {
 
   const fetchInitialData = async () => {
     setLoading(true);
-    const [branchRes, deptRes] = await Promise.all([
+    const [branchRes, deptRes, roleRes] = await Promise.all([
       supabase.from('hotel_branches').select('*'),
-      supabase.from('departments').select('*')
+      supabase.from('departments').select('*'),
+      supabase.from('job_roles').select('*')
     ]);
 
     if (branchRes.data) setBranches(branchRes.data);
     if (deptRes.data) setDepartments(deptRes.data);
+    if (roleRes.data) setJobRoles(roleRes.data);
     
     fetchStaff();
   };
@@ -57,10 +60,21 @@ export const StaffCreation = () => {
   };
 
   const filteredDepartments = departments.filter(d => d.branch_id === formData.branchId);
+  const filteredRoles = jobRoles.filter(r => r.department_id === formData.departmentId);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const newState = { ...prev, [name]: value };
+      if (name === "branchId") {
+        newState.departmentId = "";
+        newState.role = "";
+      }
+      if (name === "departmentId") {
+        newState.role = "";
+      }
+      return newState;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -185,35 +199,35 @@ export const StaffCreation = () => {
 
           <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
             <SectionHeader title="2. Professional Assignment" subtitle="Department and shift allocation" />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem" }}>
-              <div className="form-group">
-                <label>Branch</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2rem" }}>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Branch</label>
                 <select name="branchId" value={formData.branchId} onChange={handleChange} required>
                   <option value="">Select Branch...</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
                 </select>
               </div>
-              <div className="form-group">
-                <label>Department</label>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Department</label>
                 <select name="departmentId" value={formData.departmentId} onChange={handleChange} disabled={!formData.branchId} required>
                   <option value="">Select Dept...</option>
                   {filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
-              <div className="form-group">
-                <label>Job Role</label>
-                <select name="role" value={formData.role} onChange={handleChange} required>
-                  <option value="Receptionist">Receptionist</option>
-                  <option value="Housekeeping">Housekeeping</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Security">Security</option>
-                  <option value="Chef">Chef</option>
-                  <option value="Waiter">Waiter</option>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Job Role</label>
+                <select name="role" value={formData.role} onChange={handleChange} disabled={!formData.departmentId} required>
+                  <option value="">Select Role...</option>
+                  {filteredRoles.map(role => (
+                    <option key={role.id} value={role.role_name}>{role.role_name}</option>
+                  ))}
                 </select>
+                {filteredRoles.length === 0 && formData.departmentId && (
+                  <span style={{ fontSize: "0.7rem", color: "#ef4444" }}>No roles defined for this dept.</span>
+                )}
               </div>
-              <div className="form-group">
-                <label>Shift</label>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Shift</label>
                 <select name="shift" value={formData.shift} onChange={handleChange} required>
                   <option value="Morning">Morning</option>
                   <option value="Afternoon">Afternoon</option>
@@ -221,8 +235,13 @@ export const StaffCreation = () => {
                 </select>
               </div>
             </div>
-            <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
-              <button type="submit" disabled={loading} style={{ padding: "1rem 3rem", fontSize: "1rem" }}>
+            <div style={{ marginTop: "2.5rem", display: "flex", justifyContent: "flex-end" }}>
+              <button type="submit" disabled={loading} style={{ 
+                padding: "1rem 3.5rem", 
+                fontSize: "1rem",
+                borderRadius: "12px",
+                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
+              }}>
                 {loading ? "Enrolling Staff..." : "Complete Enrollment"}
               </button>
             </div>
