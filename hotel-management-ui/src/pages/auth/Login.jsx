@@ -9,7 +9,6 @@ import Button from "../../components/Button";
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -18,10 +17,6 @@ function Login() {
 
     if (!email || !password) {
       alert("Please enter email and password.");
-      return;
-    }
-    if (!role) {
-      alert("Please select your access role.");
       return;
     }
 
@@ -42,11 +37,12 @@ function Login() {
 
       console.log("✅ Auth success, user id:", authData.user.id);
 
-      // STEP 2: Use RPC instead of direct table query (avoids RLS recursion)
-      const { data: userRole, error: roleError } = 
-        await supabase.rpc('get_my_role');
-
-      console.log("Role fetch result:", userRole, roleError);
+      // STEP 2: Fetch role from DB via direct query (targeting auth_id)
+      const { data: profile, error: roleError } = await supabase
+        .from("users")
+        .select("role")
+        .eq("auth_id", authData.user.id) // Corrected to use auth_id
+        .maybeSingle();
 
       if (roleError) {
         alert(`Profile error: ${roleError.message}`);
@@ -54,31 +50,31 @@ function Login() {
         return;
       }
 
+      if (!profile) {
+        alert("Your account was created, but your profile was not found. Please contact support.");
+        await supabase.auth.signOut();
+        return;
+      }
+
+      const userRole = profile?.role;
+
       if (!userRole) {
         alert("No profile found for this account.");
         await supabase.auth.signOut();
         return;
       }
 
-      // STEP 3: Map DB role to app role
-      let dbRole = "";
-      if (userRole === "hotel_owner") dbRole = "owner";
-      else if (userRole === "admin")  dbRole = "admin";
+      // STEP 3: Map DB role to app role and save to localStorage
+      let appRole = "";
+      if (userRole === "hotel_owner") appRole = "owner";
+      else if (userRole === "admin")  appRole = "admin";
       else {
-        alert("Invalid role in database.");
+        alert("Invalid role detected.");
         await supabase.auth.signOut();
         return;
       }
 
-      // STEP 4: Match selected role vs DB role
-      if (role !== dbRole) {
-        alert(`Access Denied: Your account role is "${dbRole}" but you selected "${role}".`);
-        await supabase.auth.signOut();
-        return;
-      }
-
-      // STEP 5: Save to localStorage and navigate
-      localStorage.setItem("userRole",  dbRole);
+      localStorage.setItem("userRole",  appRole);
       localStorage.setItem("userId",    authData.user.id);
       localStorage.setItem("userName",
         authData.user.user_metadata?.full_name ||
@@ -86,16 +82,17 @@ function Login() {
       );
       localStorage.setItem("userEmail", authData.user.email);
 
-      if (dbRole === "owner") {
-        navigate(PATHS.OWNER_DASHBOARD);
-      } else {
-        navigate(PATHS.ADMIN_DASHBOARD);
+      // STEP 4: Redirect based on role (Your exact logic)
+      if (profile.role === "hotel_owner") {
+        navigate("/owner");
+      } else if (profile.role === "admin") {
+        navigate("/admin");
       }
 
     } catch (err) {
       console.error("Login Error Object:", err);
       const errorMsg = err.message || JSON.stringify(err);
-      alert(`System Error: ${errorMsg}\n\nNote: If this is a 500 error, please check the Supabase Status page as it may be a service outage.`);
+      alert(`System Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -155,26 +152,6 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-            <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b" }}>
-              Access Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              required
-              style={{
-                background: "#f8fafc", padding: "12px",
-                borderRadius: "12px", border: "1px solid #e2e8f0",
-                fontSize: "0.95rem", color: "#1e293b"
-              }}
-            >
-              <option value="">Select your role</option>
-              <option value="admin">Administrator</option>
-              <option value="owner">Hotel Owner</option>
-            </select>
           </div>
 
           <div style={{ marginTop: "1rem" }}>

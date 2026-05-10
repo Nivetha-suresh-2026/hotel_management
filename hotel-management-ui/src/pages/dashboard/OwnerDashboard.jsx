@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import Sidebar from "../../components/Sidebar";
 import { supabase } from "../../lib/supabaseClient";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { PATHS } from "../../routes/paths";
+import { AdminWrapper } from "../admin/AdminWrapper";
 
 function OwnerDashboard() {
   const navigate = useNavigate();
@@ -83,83 +83,60 @@ function OwnerDashboard() {
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
-    <div className="admin-layout">
-      <Sidebar />
-      <main className="admin-main">
-        <header style={{ 
-          background: "white", 
-          padding: "1rem 2rem", 
-          borderBottom: "1px solid var(--border-color)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
-          <h2 style={{ margin: 0 }}>Business Insights</h2>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <span style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Live Overview</span>
-            <button 
-              onClick={fetchDashboardData}
-              style={{ background: "#f1f5f9", color: "var(--text-main)", border: "1px solid var(--border-color)", padding: "6px 12px", borderRadius: "8px", cursor: "pointer" }}
-            >
-              🔄 Refresh
-            </button>
-          </div>
-        </header>
-
-        <div className="container">
-          {/* Section 1: KPI Cards */}
-          <section className="dashboard-grid" style={{ marginTop: 0 }}>
-            {kpis.map((kpi, index) => (
-              <div key={index} className="stat-card" style={{ borderTop: `4px solid ${kpi.color}`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                  <span style={{ fontSize: "1.5rem" }}>{kpi.icon}</span>
-                  <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--text-muted)" }}>{kpi.title}</h3>
-                </div>
-                <p style={{ fontSize: "2.5rem", margin: 0, fontWeight: "800" }}>{kpi.value}</p>
+    <AdminWrapper title="Business Insights" subtitle="Real-time performance and resource overview">
+      <div className="container" style={{ padding: 0 }}>
+        {/* Section 1: KPI Cards */}
+        <section className="dashboard-grid" style={{ marginTop: 0 }}>
+          {kpis.map((kpi, index) => (
+            <div key={index} className="stat-card" style={{ borderTop: `4px solid ${kpi.color}`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "1.5rem" }}>{kpi.icon}</span>
+                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--text-muted)" }}>{kpi.title}</h3>
               </div>
-            ))}
-          </section>
-
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "2rem", marginTop: "2rem" }}>
-            {/* Section 2: Visualization */}
-            <div className="card" style={{ padding: "2rem" }}>
-              <h3 style={{ marginBottom: "1.5rem" }}>Resource Distribution</h3>
-              <div style={{ height: "350px" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{fill: '#f8fafc'}} />
-                    <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <p style={{ fontSize: "2.5rem", margin: 0, fontWeight: "800" }}>{kpi.value}</p>
             </div>
+          ))}
+        </section>
 
-            {/* Section 3: Quick Links or Summary */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-               <div className="card" style={{ background: "#0f172a", color: "white" }}>
-                <h3 style={{ margin: "0 0 1.5rem 0", color: "#38bdf8", fontSize: "1rem" }}>🕵️ Admin Activity Monitor</h3>
-                <p style={{ fontSize: "0.875rem", color: "#94a3b8", lineHeight: "1.6" }}>
-                  Track real-time system changes, including room creations, branch registrations, and staff onboarding events.
-                </p>
-                <button 
-                  onClick={() => navigate(PATHS.OWNER_ACTIVITY)}
-                  style={{ width: "100%", marginTop: "1.5rem", background: "#1e293b", border: "none", color: "#38bdf8", padding: "12px", borderRadius: "8px", fontSize: "0.875rem", cursor: "pointer", fontWeight: "600" }}
-                >
-                  View Full Audit Log
-                </button>
-              </div>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "2rem", marginTop: "2rem" }}>
+          {/* Section 2: Visualization */}
+          <div className="card" style={{ padding: "2rem" }}>
+            <h3 style={{ marginBottom: "1.5rem" }}>Resource Distribution</h3>
+            <div style={{ height: "350px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{fill: '#f8fafc'}} />
+                  <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Section 3: Summary */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+            <div className="card" style={{ background: "#0f172a", color: "white" }}>
+              <h3 style={{ margin: "0 0 1.5rem 0", color: "#38bdf8", fontSize: "1rem" }}>🕵️ Admin Activity Monitor</h3>
+              <p style={{ fontSize: "0.875rem", color: "#94a3b8", lineHeight: "1.6" }}>
+                Track real-time system changes, including room creations, branch registrations, and staff onboarding events.
+              </p>
+              <button 
+                onClick={() => navigate(PATHS.OWNER_ACTIVITY)}
+                style={{ width: "100%", marginTop: "1.5rem", background: "#1e293b", border: "none", color: "#38bdf8", padding: "12px", borderRadius: "8px", fontSize: "0.875rem", cursor: "pointer", fontWeight: "600" }}
+              >
+                View Full Audit Log
+              </button>
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminWrapper>
   );
 }
 

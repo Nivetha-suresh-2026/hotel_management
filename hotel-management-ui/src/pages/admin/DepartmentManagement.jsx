@@ -1,43 +1,94 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { AdminWrapper, SectionHeader } from "./AdminWrapper";
 import { PATHS } from "../../routes/paths";
+import { supabase } from "../../lib/supabaseClient";
 
 export const DepartmentManagement = () => {
-  const [formData, setFormData] = React.useState({
+  const [formData, setFormData] = useState({
     branchId: "",
-    departmentName: "",
+    name: "",
     description: ""
   });
-  const [branches, setBranches] = React.useState([]);
-  const [departments, setDepartments] = React.useState([]);
-  const [notification, setNotification] = React.useState(null);
+  const [branches, setBranches] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
 
-  React.useEffect(() => {
-    const savedBranches = JSON.parse(localStorage.getItem("branches") || "[]");
-    const savedDepartments = JSON.parse(localStorage.getItem("departments") || "[]");
-    setBranches(savedBranches);
-    setDepartments(savedDepartments);
+  const allowedDepartments = [
+    'Front Desk',
+    'Housekeeping',
+    'Food & Beverage',
+    'Maintenance',
+    'Security',
+    'Management'
+  ];
+
+  useEffect(() => {
+    fetchInitialData();
   }, []);
+
+  const fetchInitialData = async () => {
+    const { data: branchData } = await supabase.from('hotel_branches').select('*');
+    if (branchData) setBranches(branchData);
+    fetchDepartments();
+  };
+
+  const fetchDepartments = async () => {
+    const { data, error } = await supabase
+      .from('departments')
+      .select(`*, hotel_branches(branch_name)`)
+      .order('created_at', { ascending: false });
+    if (!error) setDepartments(data);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.branchId || !formData.departmentName || !formData.description) {
-      setNotification({ type: "error", message: "Please fill all fields" });
+    if (!formData.branchId || !formData.name) {
+      setNotification({ type: "error", message: "Please fill all required fields" });
       return;
     }
-    const branch = branches.find(b => b.id.toString() === formData.branchId);
-    const newDept = { ...formData, id: Date.now(), branchName: branch.branchName };
-    const updatedDepts = [...departments, newDept];
-    localStorage.setItem("departments", JSON.stringify(updatedDepts));
-    setDepartments(updatedDepts);
-    setFormData({ branchId: "", departmentName: "", description: "" });
-    setNotification({ type: "success", message: "Department created successfully!" });
-    setTimeout(() => setNotification(null), 3000);
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single();
+
+      if (!profile) throw new Error("User profile not found");
+
+      const payload = {
+        branch_id: formData.branchId,
+        name: formData.name,
+        description: formData.description,
+        created_by: profile.id
+      };
+
+      const { error } = await supabase.from('departments').insert([payload]);
+      if (error) throw error;
+
+      setNotification({ type: "success", message: "Department created successfully!" });
+      setFormData({ branchId: "", name: "", description: "" });
+      fetchDepartments();
+    } catch (error) {
+      setNotification({ type: "error", message: error.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this department?")) return;
+    const { error } = await supabase.from('departments').delete().eq('id', id);
+    if (!error) fetchDepartments();
   };
 
   return (
@@ -55,18 +106,23 @@ export const DepartmentManagement = () => {
               <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Branch</label>
               <select name="branchId" value={formData.branchId} onChange={handleChange}>
                 <option value="">Select branch...</option>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.branchName}</option>)}
+                {branches.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Department Name</label>
-              <input type="text" name="departmentName" value={formData.departmentName} onChange={handleChange} placeholder="e.g. Housekeeping" />
+              <select name="name" value={formData.name} onChange={handleChange}>
+                <option value="">Choose department...</option>
+                {allowedDepartments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
             <div className="form-group">
               <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Description</label>
               <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Department purpose..." rows={3} />
             </div>
-            <button type="submit" style={{ padding: "0.875rem" }}>Create Department</button>
+            <button type="submit" disabled={loading} style={{ padding: "0.875rem" }}>
+              {loading ? "Creating..." : "Create Department"}
+            </button>
           </form>
         </div>
 
@@ -86,14 +142,30 @@ export const DepartmentManagement = () => {
                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Department</th>
                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Branch</th>
                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Purpose</th>
+                    <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {departments.map(dept => (
                     <tr key={dept.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                      <td style={{ padding: "1rem 2rem", fontWeight: "700" }}>{dept.departmentName}</td>
-                      <td style={{ padding: "1rem 2rem" }}>{dept.branchName}</td>
+                      <td style={{ padding: "1rem 2rem" }}>
+                        <span style={{ 
+                          padding: "4px 12px", 
+                          borderRadius: "15px", 
+                          background: "#eff6ff", 
+                          color: "#1e40af",
+                          fontSize: "0.75rem",
+                          fontWeight: "700"
+                        }}>{dept.name}</span>
+                      </td>
+                      <td style={{ padding: "1rem 2rem", fontWeight: "600" }}>{dept.hotel_branches?.branch_name}</td>
                       <td style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>{dept.description}</td>
+                      <td style={{ padding: "1rem 2rem", textAlign: "right" }}>
+                        <button 
+                          onClick={() => handleDelete(dept.id)}
+                          style={{ background: "#fee2e2", color: "#ef4444", border: "none", padding: "6px", borderRadius: "6px", cursor: "pointer" }}
+                        >🗑️</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,6 +1,7 @@
 import React from "react";
 import { AdminWrapper, SectionHeader } from "./AdminWrapper";
 import { PATHS } from "../../routes/paths";
+import { supabase } from "../../lib/supabaseClient";
 
 export const GuestDetails = () => {
   const [guests, setGuests] = React.useState([]);
@@ -9,9 +10,30 @@ export const GuestDetails = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   React.useEffect(() => {
-    const savedBookings = JSON.parse(localStorage.getItem("bookings") || "[]");
-    setGuests(savedBookings);
+    fetchGuests();
   }, []);
+
+  const fetchGuests = async () => {
+    const { data, error } = await supabase
+      .from('guests')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching guests:", error);
+    } else {
+      // Map the DB columns to the UI state names if they differ
+      const mappedGuests = data.map(g => ({
+        id: g.id,
+        guestName: g.full_name,
+        contact: g.phone,
+        email: g.email,
+        aadhar: g.id_proof_number,
+        created_at: g.created_at
+      }));
+      setGuests(mappedGuests);
+    }
+  };
 
   const filteredGuests = guests.filter(guest => 
     guest.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -23,13 +45,28 @@ export const GuestDetails = () => {
     setIsModalOpen(true);
   };
 
-  const handleUpdateGuest = (e) => {
+  const handleUpdateGuest = async (e) => {
     e.preventDefault();
-    const updatedGuests = guests.map(g => g.id === selectedGuest.id ? selectedGuest : g);
-    localStorage.setItem("bookings", JSON.stringify(updatedGuests));
-    setGuests(updatedGuests);
-    setIsModalOpen(false);
-    alert("Guest details updated successfully!");
+    try {
+      const { error } = await supabase
+        .from('guests')
+        .update({
+          full_name: selectedGuest.guestName,
+          phone: selectedGuest.contact,
+          email: selectedGuest.email,
+          id_proof_number: selectedGuest.aadhar,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedGuest.id);
+
+      if (error) throw error;
+
+      setIsModalOpen(false);
+      alert("Guest details updated successfully!");
+      fetchGuests(); // Refresh list
+    } catch (err) {
+      alert(`Update failed: ${err.message}`);
+    }
   };
 
   const handleModalChange = (name, value) => {

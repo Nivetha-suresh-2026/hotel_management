@@ -41,15 +41,15 @@ function AdminDashboard() {
         .from("staff")
         .select("*", { count: "exact", head: true });
 
-      // Fetch today's bookings
+      // Fetch today's bookings with guest details
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("*")
+        .select("*, guests(full_name)")
         .order("created_at", { ascending: false });
 
       const todayCheckIns = bookings?.filter(b => b.check_in_date === today) || [];
       const todayCheckOuts = bookings?.filter(b => b.check_out_date === today) || [];
-      const confirmedGuests = bookings?.filter(b => b.status === "confirmed") || [];
+      const confirmedGuests = bookings?.filter(b => b.status === "reserved" || b.status === "checked_in") || [];
       const cashCollection = todayCheckIns.reduce(
         (sum, b) => sum + (parseFloat(b.total_amount) || 0), 0
       );
@@ -195,14 +195,14 @@ function AdminDashboard() {
                       <td style={{ padding: "1rem", fontWeight: "600" }}>
                         #{booking.id?.toString().slice(0, 8)}
                       </td>
-                      <td style={{ padding: "1rem" }}>{booking.guest_name || "—"}</td>
+                      <td style={{ padding: "1rem" }}>{booking.guests?.full_name || "—"}</td>
                       <td style={{ padding: "1rem" }}>{booking.check_in_date || "—"}</td>
                       <td style={{ padding: "1rem" }}>{booking.check_out_date || "—"}</td>
                       <td style={{ padding: "1rem" }}>
                         <span style={{
                           padding: "4px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "700",
-                          background: booking.status === "confirmed" ? "#dcfce7" : "#fef9c3",
-                          color: booking.status === "confirmed" ? "#166534" : "#854d0e"
+                          background: booking.status === "reserved" ? "#dcfce7" : "#fef9c3",
+                          color: booking.status === "reserved" ? "#166534" : "#854d0e"
                         }}>
                           {booking.status}
                         </span>

@@ -29,26 +29,38 @@ function BookingForm() {
     setStep(1);
   };
 
-  const handleSubmit = (e) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     
     // Final Validation before submission
     if (formData.contact.length !== 10) {
       alert("Phone number must be exactly 10 digits");
+      setLoading(false);
       return;
     }
     if (formData.aadhar.length !== 12) {
       alert("Aadhar number must be exactly 12 digits");
+      setLoading(false);
       return;
     }
     if (/\d/.test(formData.guestName)) {
       alert("Full Name should not contain numbers");
+      setLoading(false);
       return;
     }
 
-    createBooking(formData);
-    alert(`Reservation confirmed for ${formData.guestName}!`);
-    navigate("/admin");
+    try {
+      await createBooking(formData);
+      alert(`Reservation confirmed for ${formData.guestName}!`);
+      navigate("/admin/guests"); // Redirect to guests page to see the new entry
+    } catch (err) {
+      alert(`Booking failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (name, value) => {
@@ -153,7 +165,7 @@ function BookingForm() {
               />
             </div>
             <div style={{ gridColumn: "span 2", marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
-              <Button text="Continue to Booking" />
+              <Button text="Continue to Booking" loading={loading} />
             </div>
           </form>
         ) : (
@@ -207,7 +219,7 @@ function BookingForm() {
                 Back to Details
               </button>
               <div style={{ flex: 2 }}>
-                <Button text="Confirm Reservation" />
+                <Button text="Confirm Reservation" loading={loading} loadingText="Creating Reservation..." />
               </div>
             </div>
           </form>

@@ -149,9 +149,12 @@ export const UserManagement = () => {
               </div>
               <div className="form-group">
                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Assigned Role</label>
-                <select name="role" value={formData.role} onChange={handleChange} style={{ background: "#f8fafc" }}>
-                  <option value="admin">Administrator</option>
-                </select>
+                <input
+                  type="text"
+                  value="Administrator"
+                  readOnly
+                  style={{ background: "#f1f5f9", cursor: "not-allowed", color: "#64748b" }}
+                />
               </div>
               <button type="submit" disabled={loading} style={{ padding: "1rem", marginTop: "0.5rem" }}>
                 {loading ? "Creating Account..." : "Create Admin Account"}
@@ -188,12 +191,15 @@ export const UserManagement = () => {
                       <span style={{
                         padding: "0.25rem 0.75rem",
                         borderRadius: "20px",
-                        background: user.role === "admin" ? "#eff6ff" : "#fef2f2",
-                        color: user.role === "admin" ? "#2563eb" : "#dc2626",
+                        background: user.role === "admin" ? "#eff6ff" : 
+                                   user.role === "hotel_owner" ? "#fef2f2" : "#f1f5f9",
+                        color: user.role === "admin" ? "#2563eb" : 
+                               user.role === "hotel_owner" ? "#dc2626" : "#475569",
                         fontSize: "0.75rem",
                         fontWeight: "700",
-                        textTransform: "uppercase"
-                      }}>{user.role}</span>
+                        textTransform: "uppercase",
+                        border: `1px solid ${user.role === "admin" ? "#dbeafe" : user.role === "hotel_owner" ? "#fee2e2" : "#e2e8f0"}`
+                      }}>{user.role?.replace('_', ' ')}</span>
                     </td>
                     <td style={{ padding: "1.25rem 2.5rem", fontSize: "0.875rem", color: "#64748b" }}>
                       {new Date(user.created_at).toLocaleDateString()}

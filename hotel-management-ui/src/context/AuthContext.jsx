@@ -44,26 +44,33 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUserRole = async (userId) => {
       try {
-        console.log("AuthContext: Fetching role for UID:", userId);
+        console.log("AuthContext: Fetching role via direct query for UID:", userId);
         const { data, error } = await supabase
           .from("users")
           .select("role")
-          .eq("auth_id", userId)
-          .single();
+          .eq("auth_id", userId) // Corrected to use auth_id
+          .maybeSingle();
 
         if (error) {
-          console.error("AuthContext: Role fetch failed with error:", error);
+          console.error("AuthContext: Role fetch failed:", error);
           setRole(null);
           return;
         }
 
-        console.log("AuthContext: Role data received:", data);
-        if (data?.role === 'hotel_owner') {
+        if (!data) {
+          console.warn("AuthContext: No profile found for user:", userId);
+          setRole(null);
+          return;
+        }
+
+        console.log("AuthContext: Role received:", data?.role);
+        const userRole = data?.role;
+        if (userRole === 'hotel_owner') {
           setRole('owner');
-        } else if (data?.role === 'admin') {
+        } else if (userRole === 'admin') {
           setRole('admin');
         } else {
-          console.warn("AuthContext: Unknown role value:", data?.role);
+          console.warn("AuthContext: Unknown role value from RPC:", userRole);
           setRole(null);
         }
       } catch (error) {

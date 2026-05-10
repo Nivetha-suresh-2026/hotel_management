@@ -5,13 +5,18 @@ import { supabase } from "../../lib/supabaseClient";
 
 export const StaffCreation = () => {
   const [formData, setFormData] = useState({
+    fullName: "",
+    age: "",
+    gender: "",
+    mobile: "",
+    address: "",
+    identityType: "",
+    identityNumber: "",
+    employmentType: "Full Time",
     branchId: "",
     departmentId: "",
-    fullName: "",
-    role: "receptionist",
-    phone: "",
-    shift: "morning",
-    employmentType: "full_time",
+    role: "Receptionist",
+    shift: "Morning",
     status: "active"
   });
   const [branches, setBranches] = useState([]);
@@ -60,25 +65,29 @@ export const StaffCreation = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.branchId || !formData.departmentId || !formData.fullName || !formData.phone) {
+    if (!formData.branchId || !formData.departmentId || !formData.fullName || !formData.mobile) {
       setNotification({ type: "error", message: "Please fill all required fields" });
       return;
     }
 
     setLoading(true);
     try {
-      // Get the current user's profile ID
       const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase.from('users').select('id').eq('auth_id', user.id).single();
 
       const payload = {
+        full_name: formData.fullName,
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        phone: formData.mobile,
+        address: formData.address,
+        identity_type: formData.identityType,
+        identity_number: formData.identityNumber,
+        employment_type: formData.employmentType,
         branch_id: formData.branchId,
         department_id: formData.departmentId,
-        full_name: formData.fullName,
         role: formData.role,
-        phone: formData.phone,
         shift: formData.shift,
-        employment_type: formData.employmentType,
         status: formData.status,
         created_by: profile.id
       };
@@ -86,16 +95,11 @@ export const StaffCreation = () => {
       const { error } = await supabase.from('staff').insert([payload]);
       if (error) throw error;
 
-      setNotification({ type: "success", message: "Staff registered successfully!" });
+      setNotification({ type: "success", message: "Staff enrolled successfully!" });
       setFormData({ 
-        branchId: "", 
-        departmentId: "", 
-        fullName: "", 
-        role: "receptionist", 
-        phone: "", 
-        shift: "morning", 
-        employmentType: "full_time", 
-        status: "active" 
+        fullName: "", age: "", gender: "", mobile: "", address: "", 
+        identityType: "", identityNumber: "", employmentType: "Full Time",
+        branchId: "", departmentId: "", role: "Receptionist", shift: "Morning", status: "active" 
       });
       fetchStaff();
     } catch (error) {
@@ -109,83 +113,121 @@ export const StaffCreation = () => {
   return (
     <AdminWrapper 
       title="Staff Enrollment" 
-      subtitle="Onboard new employees and assign roles"
+      subtitle="Comprehensive employee onboarding and department assignment"
       notification={notification}
-      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Staff Enrollment" }]}
+      breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Staff" }]}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", alignItems: "start" }}>
-        <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
-          <SectionHeader title="Staff Registration" subtitle="Onboard new employees" />
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+          <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
+            <SectionHeader title="1. Personal Details" subtitle="Basic identity and contact information" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2rem" }}>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Full Name</label>
+                <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="Employee full name" required />
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Age</label>
+                <input type="number" name="age" value={formData.age} onChange={handleChange} placeholder="Years" required />
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Gender</label>
+                <select name="gender" value={formData.gender} onChange={handleChange} required>
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Mobile Number</label>
+                <input type="text" name="mobile" value={formData.mobile} onChange={handleChange} placeholder="10-digit number" required />
+              </div>
+              <div className="form-group" style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Permanent Address</label>
+                <textarea 
+                  name="address" 
+                  value={formData.address} 
+                  onChange={handleChange} 
+                  placeholder="Residential address..." 
+                  rows={1} 
+                  required 
+                  style={{ 
+                    resize: "none",
+                    minHeight: "45px",
+                    padding: "0.75rem 1rem"
+                  }} 
+                />
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Identity Type</label>
+                <select name="identityType" value={formData.identityType} onChange={handleChange} required>
+                  <option value="">Select Identity...</option>
+                  <option value="Aadhar">Aadhar</option>
+                  <option value="PAN Card">PAN Card</option>
+                  <option value="Driving Licence">Driving Licence</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Identity Number</label>
+                <input type="text" name="identityNumber" value={formData.identityNumber} onChange={handleChange} placeholder="ID Number" required />
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Employment Type</label>
+                <select name="employmentType" value={formData.employmentType} onChange={handleChange} required>
+                  <option value="Full Time">Full Time</option>
+                  <option value="Part Time">Part Time</option>
+                  <option value="Hybrid">Hybrid</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ boxShadow: "var(--shadow-premium)" }}>
+            <SectionHeader title="2. Professional Assignment" subtitle="Department and shift allocation" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem" }}>
               <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Branch</label>
-                <select name="branchId" value={formData.branchId} onChange={handleChange}>
+                <label>Branch</label>
+                <select name="branchId" value={formData.branchId} onChange={handleChange} required>
                   <option value="">Select Branch...</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Dept</label>
-                <select name="departmentId" value={formData.departmentId} onChange={handleChange} disabled={!formData.branchId}>
+                <label>Department</label>
+                <select name="departmentId" value={formData.departmentId} onChange={handleChange} disabled={!formData.branchId} required>
                   <option value="">Select Dept...</option>
                   {filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
-            </div>
-            <div className="form-group">
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Full Name</label>
-              <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="Full employee name" />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Job Role</label>
-                <select name="role" value={formData.role} onChange={handleChange}>
-                  <option value="receptionist">Receptionist</option>
-                  <option value="housekeeping">Housekeeping</option>
-                  <option value="manager">Manager</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="security">Security</option>
-                  <option value="chef">Chef</option>
-                  <option value="waiter">Waiter</option>
+                <label>Job Role</label>
+                <select name="role" value={formData.role} onChange={handleChange} required>
+                  <option value="Receptionist">Receptionist</option>
+                  <option value="Housekeeping">Housekeeping</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Security">Security</option>
+                  <option value="Chef">Chef</option>
+                  <option value="Waiter">Waiter</option>
                 </select>
               </div>
               <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Shift</label>
-                <select name="shift" value={formData.shift} onChange={handleChange}>
-                  <option value="morning">Morning</option>
-                  <option value="afternoon">Afternoon</option>
-                  <option value="night">Night</option>
+                <label>Shift</label>
+                <select name="shift" value={formData.shift} onChange={handleChange} required>
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Night">Night</option>
                 </select>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Contact Phone</label>
-                <input type="text" name="phone" value={formData.phone} onChange={handleChange} placeholder="10-digit number" />
-              </div>
-              <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Employment Type</label>
-                <select name="employmentType" value={formData.employmentType} onChange={handleChange}>
-                  <option value="full_time">Full Time</option>
-                  <option value="part_time">Part Time</option>
-                  <option value="contract">Contract</option>
-                </select>
-              </div>
+            <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
+              <button type="submit" disabled={loading} style={{ padding: "1rem 3rem", fontSize: "1rem" }}>
+                {loading ? "Enrolling Staff..." : "Complete Enrollment"}
+              </button>
             </div>
-            <div className="form-group">
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Initial Status</label>
-              <select name="status" value={formData.status} onChange={handleChange}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="on_leave">On Leave</option>
-              </select>
-            </div>
-            <button type="submit" style={{ padding: "0.875rem" }} disabled={loading}>
-              {loading ? "Registering..." : "Register Staff"}
-            </button>
-          </form>
-        </div>
+          </div>
+        </form>
 
         <div className="card" style={{ padding: 0, overflow: "hidden", boxShadow: "var(--shadow-premium)" }}>
           <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid var(--border-color)", background: "#fcfcfc" }}>

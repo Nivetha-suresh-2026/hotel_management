@@ -20,6 +20,8 @@ export const BranchCreation = () => {
     fetchBranches();
   }, []);
 
+  const [searchTerm, setSearchTerm] = React.useState("");
+
   const fetchBranches = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -34,6 +36,13 @@ export const BranchCreation = () => {
     }
     setLoading(false);
   };
+
+  const filteredBranches = branches.filter(b => 
+    b.branch_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayedBranches = searchTerm === "" ? filteredBranches.slice(0, 4) : filteredBranches;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -58,16 +67,27 @@ export const BranchCreation = () => {
     }
 
     setLoading(true);
-    const payload = {
-      branch_name: formData.branchName,
-      location: formData.location,
-      start_floor: parseInt(formData.startFloor),
-      end_floor: parseInt(formData.endFloor),
-      contact_number: formData.contactNumber,
-      status: 'Active'
-    };
-
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single();
+
+      if (!profile) throw new Error("User profile not found");
+
+      const payload = {
+        branch_name: formData.branchName,
+        location: formData.location,
+        start_floor: parseInt(formData.startFloor),
+        end_floor: parseInt(formData.endFloor),
+        contact_number: formData.contactNumber,
+        status: 'Active',
+        created_by: profile.id,
+        owner_id: profile.id
+      };
+
       if (editingId) {
         const { error } = await supabase
           .from('hotel_branches')
@@ -186,12 +206,25 @@ export const BranchCreation = () => {
         </div>
 
         <div className="card" style={{ padding: 0, overflow: "hidden", boxShadow: "var(--shadow-premium)", border: "1px solid #f1f5f9" }}>
-          <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid var(--border-color)", background: "#fcfcfc" }}>
-            <SectionHeader title="All Branches" subtitle={`${branches.length} locations registered`} />
+          <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid var(--border-color)", background: "#fcfcfc", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+            <SectionHeader 
+              title="All Branches" 
+              subtitle={searchTerm === "" ? `Showing last 4 of ${branches.length} locations` : `Found ${filteredBranches.length} matches`} 
+            />
+            <div style={{ position: "relative", minWidth: "250px" }}>
+              <span style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
+              <input 
+                type="text" 
+                placeholder="Search branch name or city..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ paddingLeft: "2.5rem", borderRadius: "10px", fontSize: "0.875rem" }}
+              />
+            </div>
           </div>
-          {branches.length === 0 ? (
+          {displayedBranches.length === 0 ? (
             <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
-              <p style={{ color: "var(--text-muted)" }}>{loading ? "Loading branches..." : "No branches created yet."}</p>
+              <p style={{ color: "var(--text-muted)" }}>{loading ? "Loading branches..." : "No branches found."}</p>
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -206,7 +239,7 @@ export const BranchCreation = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {branches.map(branch => (
+                  {displayedBranches.map(branch => (
                     <tr key={branch.id} style={{ borderBottom: "1px solid var(--border-color)", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                       <td style={{ padding: "1.25rem 2rem", fontWeight: "600" }}>{branch.branch_name}</td>
                       <td style={{ padding: "1.25rem 2rem" }}>{branch.location}</td>

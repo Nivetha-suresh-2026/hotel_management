@@ -1,301 +1,3 @@
-// import React from "react";
-// import { AdminWrapper } from "./AdminWrapper";
-// import { PATHS } from "../../routes/paths";
-
-// export const RoomCreation = () => {
-//   const [formData, setFormData] = React.useState({
-//     branchId: "",
-//     floor: "",
-//     roomNumber: "",
-//     roomType: "",
-//     bedCount: "",
-//     features: []
-//   });
-//   const [branches, setBranches] = React.useState([]);
-//   const [rooms, setRooms] = React.useState([]);
-//   const [notification, setNotification] = React.useState(null);
-//   const [editingId, setEditingId] = React.useState(null);
-
-//   React.useEffect(() => {
-//     const savedBranches = JSON.parse(localStorage.getItem("branches") || "[]");
-//     const savedRooms = JSON.parse(localStorage.getItem("rooms") || "[]");
-//     setBranches(savedBranches);
-//     setRooms(savedRooms);
-//   }, []);
-
-//   const selectedBranch = branches.find(b => b.id.toString() === formData.branchId);
-//   const floors = selectedBranch 
-//     ? Array.from({ length: selectedBranch.endFloor - selectedBranch.startFloor + 1 }, (_, i) => selectedBranch.startFloor + i)
-//     : [];
-
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData(prev => ({ ...prev, [name]: value }));
-//   };
-
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-//     if (!formData.branchId || !formData.floor || !formData.roomNumber || !formData.roomType || !formData.bedCount) {
-//       setNotification({ type: "error", message: "Please fill all fields" });
-//       return;
-//     }
-
-//     const branch = branches.find(b => b.id.toString() === formData.branchId);
-
-//     if (editingId) {
-//       const updatedRooms = rooms.map(r => r.id === editingId ? { ...formData, id: editingId, branchName: branch.branchName } : r);
-//       localStorage.setItem("rooms", JSON.stringify(updatedRooms));
-//       setRooms(updatedRooms);
-//       setEditingId(null);
-//       setNotification({ type: "success", message: "Room updated successfully!" });
-//     } else {
-//       const newRoom = { ...formData, id: Date.now(), branchName: branch.branchName };
-//       const updatedRooms = [...rooms, newRoom];
-//       localStorage.setItem("rooms", JSON.stringify(updatedRooms));
-//       setRooms(updatedRooms);
-//       setNotification({ type: "success", message: "Room created successfully!" });
-//     }
-
-//     setFormData({ branchId: "", floor: "", roomNumber: "", roomType: "", bedCount: "", features: [] });
-//     setTimeout(() => setNotification(null), 3000);
-//   };
-
-//   const handleEditRoom = (room) => {
-//     setFormData({
-//       branchId: branches.find(b => b.branchName === room.branchName)?.id.toString() || "",
-//       floor: room.floor,
-//       roomNumber: room.roomNumber,
-//       roomType: room.roomType,
-//       bedCount: room.bedCount,
-//       features: room.features || []
-//     });
-//     setEditingId(room.id);
-//     window.scrollTo({ top: 0, behavior: "smooth" });
-//   };
-
-//   const handleDeleteRoom = (id) => {
-//     if (window.confirm("Are you sure you want to delete this room?")) {
-//       const updatedRooms = rooms.filter(r => r.id !== id);
-//       localStorage.setItem("rooms", JSON.stringify(updatedRooms));
-//       setRooms(updatedRooms);
-//       setNotification({ type: "success", message: "Room deleted successfully!" });
-//       setTimeout(() => setNotification(null), 3000);
-//     }
-//   };
-
-//   return (
-//     <AdminWrapper 
-//       title="Room Setup" 
-//       subtitle="Configure room units, types, and floor assignments"
-//       notification={notification}
-//       breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Rooms" }]}
-//     >
-//       <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-//         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-//           <div className="card" style={{ padding: "1.5rem", boxShadow: "none", border: "1px solid #e2e8f0" }}>
-//             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
-//               <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6" }}></span>
-//               <h4 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: "700", color: "#1e293b" }}>Branch</h4>
-//             </div>
-//             <div className="form-group">
-//               <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8125rem", fontWeight: "600", color: "#64748b" }}>Select branch</label>
-//               <select name="branchId" value={formData.branchId} onChange={handleChange} style={{ borderRadius: "10px" }}>
-//                 <option value="">Choose a branch...</option>
-//                 {branches.map(b => (
-//                   <option key={b.id} value={b.id}>{b.branchName}</option>
-//                 ))}
-//               </select>
-//             </div>
-//           </div>
-
-//           <div className="card" style={{ padding: "1.5rem", boxShadow: "none", border: "1px solid #e2e8f0" }}>
-//             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
-//               <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6" }}></span>
-//               <h4 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: "700", color: "#1e293b" }}>Location</h4>
-//             </div>
-//             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-//               <div className="form-group">
-//                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8125rem", fontWeight: "600", color: "#64748b" }}>Floor</label>
-//                 <select name="floor" value={formData.floor} onChange={handleChange} disabled={!formData.branchId} style={{ borderRadius: "10px" }}>
-//                   <option value="">Floor...</option>
-//                   {floors.map(f => <option key={f} value={f}>Floor {f}</option>)}
-//                 </select>
-//               </div>
-//               <div className="form-group">
-//                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8125rem", fontWeight: "600", color: "#64748b" }}>Room number</label>
-//                 <input type="text" name="roomNumber" value={formData.roomNumber} onChange={handleChange} placeholder="e.g. 101" style={{ borderRadius: "10px" }} />
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="card" style={{ padding: "1.5rem", boxShadow: "none", border: "1px solid #e2e8f0" }}>
-//             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
-//               <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6" }}></span>
-//               <h4 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: "700", color: "#1e293b" }}>Room details</h4>
-//             </div>
-//             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-//               <div className="form-group">
-//                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8125rem", fontWeight: "600", color: "#64748b" }}>Room type</label>
-//                 <select name="roomType" value={formData.roomType} onChange={handleChange} style={{ borderRadius: "10px" }}>
-//                   <option value="">Type...</option>
-//                   <option value="Single">Single</option>
-//                   <option value="Double">Double</option>
-//                   <option value="Suite">Suite</option>
-//                   <option value="Deluxe">Deluxe</option>
-//                 </select>
-//               </div>
-//               <div className="form-group">
-//                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8125rem", fontWeight: "600", color: "#64748b" }}>Beds</label>
-//                 <input type="number" name="bedCount" value={formData.bedCount} onChange={handleChange} placeholder="Count" min="1" style={{ borderRadius: "10px" }} />
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="card" style={{ padding: "1.5rem", boxShadow: "none", border: "1px solid #e2e8f0" }}>
-//             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
-//               <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981" }}></span>
-//               <h4 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: "700", color: "#1e293b" }}>Features & Amenities</h4>
-//             </div>
-//             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-//               {["AC", "WiFi", "TV", "Mini Fridge", "Bathtub", "Balcony", "Safe", "Room Service"].map(feature => {
-//                 const isSelected = formData.features.includes(feature);
-//                 return (
-//                   <button
-//                     key={feature}
-//                     type="button"
-//                     onClick={() => {
-//                       const newFeatures = isSelected 
-//                         ? formData.features.filter(f => f !== feature)
-//                         : [...formData.features, feature];
-//                       setFormData(prev => ({ ...prev, features: newFeatures }));
-//                     }}
-//                     style={{
-//                       padding: "0.5rem 1rem",
-//                       borderRadius: "20px",
-//                       fontSize: "0.8125rem",
-//                       fontWeight: "600",
-//                       border: "1px solid",
-//                       borderColor: isSelected ? "#10b981" : "#e2e8f0",
-//                       background: isSelected ? "#ecfdf5" : "transparent",
-//                       color: isSelected ? "#059669" : "#64748b",
-//                       boxShadow: "none",
-//                       transition: "all 0.2s"
-//                     }}
-//                   >
-//                     {isSelected ? "✓ " : "+ "}{feature}
-//                   </button>
-//                 );
-//               })}
-//             </div>
-//           </div>
-
-//           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem", gap: "1rem", alignItems: "center" }}>
-//             {editingId && (
-//               <button 
-//                 type="button" 
-//                 onClick={() => {
-//                   setEditingId(null);
-//                   setFormData({ branchId: "", floor: "", roomNumber: "", roomType: "", bedCount: "", features: [] });
-//                 }}
-//                 style={{ background: "transparent", color: "#64748b", border: "none", boxShadow: "none", cursor: "pointer" }}
-//               >
-//                 Cancel Edit
-//               </button>
-//             )}
-//             <button type="submit" style={{ 
-//               padding: "0.875rem 2.5rem", 
-//               borderRadius: "12px", 
-//               background: "var(--primary)", 
-//               fontSize: "0.9375rem",
-//               fontWeight: "600",
-//               boxShadow: "0 4px 6px -1px rgb(79 70 229 / 0.2)"
-//             }}>
-//               {editingId ? "Update Room" : "Create Room"}
-//             </button>
-//           </div>
-//         </form>
-
-//         <div className="card" style={{ padding: 0, overflow: "hidden", boxShadow: "none", border: "1px solid #e2e8f0", marginTop: "1rem" }}>
-//           <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid #e2e8f0", background: "#fcfcfc" }}>
-//             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-//               <div>
-//                 <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: "700" }}>Inventory</h4>
-//                 <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8125rem", color: "var(--text-muted)" }}>{rooms.length} rooms available</p>
-//               </div>
-//             </div>
-//           </div>
-//           {rooms.length === 0 ? (
-//             <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
-//               <p style={{ color: "var(--text-muted)" }}>No rooms registered yet.</p>
-//             </div>
-//           ) : (
-//             <div style={{ overflowX: "auto" }}>
-//               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-//                 <thead>
-//                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--border-color)" }}>
-//                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Room</th>
-//                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Location</th>
-//                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Type</th>
-//                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Features</th>
-//                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Beds</th>
-//                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {rooms.map(room => (
-//                     <tr key={room.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-//                       <td style={{ padding: "1.25rem 2rem" }}>
-//                         <div style={{ fontWeight: "700", color: "var(--primary)" }}>#{room.roomNumber}</div>
-//                         <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Floor {room.floor}</div>
-//                       </td>
-//                       <td style={{ padding: "1.25rem 2rem" }}>{room.branchName}</td>
-//                       <td style={{ padding: "1.25rem 2rem" }}>
-//                         <span style={{ 
-//                           padding: "0.25rem 0.75rem", 
-//                           borderRadius: "20px", 
-//                           background: "#f1f5f9", 
-//                           color: "#475569",
-//                           fontSize: "0.75rem", 
-//                           fontWeight: "700" 
-//                         }}>{room.roomType}</span>
-//                       </td>
-//                       <td style={{ padding: "1.25rem 2rem" }}>
-//                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-//                           {room.features && room.features.map(f => (
-//                             <span key={f} style={{ fontSize: "0.65rem", background: "#f0f9ff", color: "#0369a1", padding: "2px 6px", borderRadius: "4px", border: "1px solid #bae6fd" }}>{f}</span>
-//                           ))}
-//                         </div>
-//                       </td>
-//                       <td style={{ padding: "1.25rem 2rem", fontWeight: "600" }}>{room.bedCount}</td>
-//                       <td style={{ padding: "1.25rem 2rem", textAlign: "right" }}>
-//                         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-//                           <button 
-//                             onClick={() => handleEditRoom(room)}
-//                             style={{ padding: "6px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", cursor: "pointer" }}
-//                             title="Edit"
-//                           >
-//                             ✏️
-//                           </button>
-//                           <button 
-//                             onClick={() => handleDeleteRoom(room.id)}
-//                             style={{ padding: "6px", background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: "6px", cursor: "pointer" }}
-//                             title="Delete"
-//                           >
-//                             🗑️
-//                           </button>
-//                         </div>
-//                       </td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-//             </div>
-//           )}
-//         </div>
-//       </div>
-//     </AdminWrapper>
-//   );
-// };
 import React, { useState, useEffect } from "react";
 import { AdminWrapper, SectionHeader } from "./AdminWrapper";
 import { PATHS } from "../../routes/paths";
@@ -363,6 +65,23 @@ export const RoomCreation = () => {
         throw new Error("Could not retrieve your user profile. Please re-login.");
       }
 
+      // 2. Check for duplicate room number in this branch
+      const duplicateQuery = supabase
+        .from('rooms')
+        .select('id')
+        .eq('branch_id', formData.branchId)
+        .eq('room_number', formData.roomNumber);
+      
+      if (editingId) {
+        duplicateQuery.neq('id', editingId);
+      }
+
+      const { data: duplicateRoom } = await duplicateQuery.single();
+
+      if (duplicateRoom) {
+        throw new Error(`Room #${formData.roomNumber} already exists in this branch.`);
+      }
+
       const payload = {
         branch_id: formData.branchId,
         floor_number: parseInt(formData.floorNumber),
@@ -370,7 +89,7 @@ export const RoomCreation = () => {
         room_type: formData.roomType,
         bed_count: parseInt(formData.bedCount) || 1,
         features: formData.features.join(", "),
-        created_by: profile.id // Use the public.users.id
+        created_by: profile.id
       };
 
       if (editingId) {
@@ -475,7 +194,9 @@ export const RoomCreation = () => {
           <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid #e2e8f0", background: "#fcfcfc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: "700" }}>Room Inventory</h4>
-              <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8125rem", color: "var(--text-muted)" }}>{rooms.length} rooms registered</p>
+              <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                {rooms.length === 0 ? "No rooms registered" : `Showing last 4 of ${rooms.length} rooms registered`}
+              </p>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <span style={{ fontSize: "0.75rem", fontWeight: "600", color: "#6366f1", background: "#eef2ff", padding: "4px 10px", borderRadius: "12px" }}>
@@ -501,7 +222,7 @@ export const RoomCreation = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {rooms.map(room => (
+                  {rooms.slice(0, 4).map(room => (
                     <tr key={room.id} style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.2s" }} className="table-row-hover">
                       <td style={{ padding: "1.25rem 2rem" }}>
                         <div style={{ fontWeight: "800", color: "#1e293b", fontSize: "1rem" }}>#{room.room_number}</div>

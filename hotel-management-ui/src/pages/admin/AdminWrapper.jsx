@@ -2,14 +2,37 @@ import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { PATHS } from "../../routes/paths";
 import Sidebar from "../../components/Sidebar";
+import { supabase } from "../../lib/supabaseClient";
 
 export const AdminWrapper = ({ title, subtitle, children, notification, showSearch, breadcrumbs }) => {
   const [showProfile, setShowProfile] = React.useState(false);
+  const [profile, setProfile] = React.useState(null);
   const navigate = useNavigate();
   const userRole = localStorage.getItem("userRole");
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
+  React.useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_my_profile");
+      if (!error && data) {
+        setProfile(data);
+        localStorage.setItem("userProfile", JSON.stringify(data));
+      } else {
+        // Fallback to localStorage if RPC fails
+        const savedProfile = JSON.parse(localStorage.getItem("userProfile"));
+        if (savedProfile) setProfile(savedProfile);
+      }
+    } catch (err) {
+      console.error("Error fetching profile in wrapper:", err);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
     navigate("/");
   };
 
@@ -102,8 +125,12 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
                     animation: "slideDown 0.2s ease-out"
                   }}>
                     <div style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid #f1f5f9" }}>
-                      <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>{userRole === "admin" ? "Zain George" : "Property Owner"}</div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>{userRole === "admin" ? "System Administrator" : "Hotel Owner"}</div>
+                      <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--text-main)" }}>
+                        {profile?.name || "Loading..."}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px", textTransform: "capitalize" }}>
+                        {profile?.role?.replace(/_/g, " ") || "User"}
+                      </div>
                     </div>
                     <button 
                       onClick={handleLogout}

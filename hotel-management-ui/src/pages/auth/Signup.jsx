@@ -31,8 +31,7 @@ function Signup() {
         password,
         options: {
           data: {
-            full_name: name,
-            role: 'hotel_owner'
+            full_name: name
           }
         }
       });
