@@ -48,45 +48,52 @@ export const AuthProvider = ({ children }) => {
     // ── Fallback: getSession() resolves instantly from localStorage ──────
     // Browser extensions (McAfee, ASUS, etc.) can block the BroadcastChannel
     // that Supabase uses to deliver INITIAL_SESSION, leaving the app stuck.
-    // We race getSession() against onAuthStateChange — whichever fires first
-    // seeds the state; the other is a no-op due to initializedRef.
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (!mounted || initializedRef.current) return;
+    // getSession() seeds state if onAuthStateChange hasn't fired yet.
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (!mounted) return;
+      // Only act if no auth event has already initialized state
+      if (initializedRef.current) return;
       initializedRef.current = true;
       console.log('AuthContext: getSession fallback resolved');
       setSession(s);
       setUser(s?.user ?? null);
+      unblock(); // unblock immediately — profile loads in background
       if (s?.user) {
-        await fetchProfile(s.user.id);
+        fetchProfile(s.user.id);
       }
-      unblock();
     }).catch((err) => {
       console.error('AuthContext: getSession threw', err);
+      // Even on error, unblock if nothing else has
       if (mounted && !initializedRef.current) { initializedRef.current = true; unblock(); }
     });
 
     // ── Primary: onAuthStateChange ───────────────────────────────────────
-    // Supabase v2 fires INITIAL_SESSION on mount with the persisted session.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mounted) return;
         console.log('AuthContext:', event);
 
-        if (event === 'INITIAL_SESSION') {
-          // Only seed from the event if the getSession() fallback hasn't already run
-          if (!initializedRef.current) {
-            initializedRef.current = true;
-            setSession(s);
-            setUser(s?.user ?? null);
-            if (s?.user) {
-              await fetchProfile(s.user.id);
-            }
+        // ── First event of any kind — seed state and unblock ─────────────
+        // Extensions sometimes suppress INITIAL_SESSION and fire SIGNED_IN
+        // instead. We treat the very first event (regardless of type) as the
+        // initialization signal so the spinner always clears.
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          setSession(s);
+          setUser(s?.user ?? null);
+          if (!s?.user) {
+            setRole(null);
+            setProfile(null);
+            loadedUidRef.current = null;
           }
-          unblock();
+          unblock(); // unblock immediately — profile loads in background
+          if (s?.user) {
+            fetchProfile(s.user.id);
+          }
           return;
         }
 
-        // All subsequent events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.)
+        // ── Subsequent events (TOKEN_REFRESHED, SIGNED_OUT, etc.) ────────
         setSession(s);
         setUser(s?.user ?? null);
 
