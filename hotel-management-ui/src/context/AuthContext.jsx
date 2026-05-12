@@ -9,18 +9,11 @@ export const AuthProvider = ({ children }) => {
   const [role,    setRole]    = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const loadedUidRef = useRef(null);
+  const loadedUidRef    = useRef(null);
+  const initializedRef  = useRef(false); // prevent double-init from fallback + event
 
   useEffect(() => {
     let mounted = true;
-
-    // Safety net: if INITIAL_SESSION never fires (e.g. network issue), unblock UI after 5s
-    const failsafe = setTimeout(() => {
-      if (mounted) {
-        console.warn('AuthContext: failsafe — INITIAL_SESSION never fired');
-        setLoading(false);
-      }
-    }, 5000);
 
     const fetchProfile = async (userId) => {
       try {
@@ -48,21 +41,58 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // ── Single source of truth: onAuthStateChange ────────────────────────
+    const unblock = () => {
+      if (mounted) { setLoading(false); }
+    };
+
+    // ── Fallback: getSession() resolves instantly from localStorage ──────
+    // Browser extensions (McAfee, ASUS, etc.) can block the BroadcastChannel
+    // that Supabase uses to deliver INITIAL_SESSION, leaving the app stuck.
+    // We race getSession() against onAuthStateChange — whichever fires first
+    // seeds the state; the other is a no-op due to initializedRef.
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      if (!mounted || initializedRef.current) return;
+      initializedRef.current = true;
+      console.log('AuthContext: getSession fallback resolved');
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (s?.user) {
+        await fetchProfile(s.user.id);
+      }
+      unblock();
+    }).catch((err) => {
+      console.error('AuthContext: getSession threw', err);
+      if (mounted && !initializedRef.current) { initializedRef.current = true; unblock(); }
+    });
+
+    // ── Primary: onAuthStateChange ───────────────────────────────────────
     // Supabase v2 fires INITIAL_SESSION on mount with the persisted session.
-    // We handle ALL events here — do NOT use getSession() in parallel.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mounted) return;
         console.log('AuthContext:', event);
 
+        if (event === 'INITIAL_SESSION') {
+          // Only seed from the event if the getSession() fallback hasn't already run
+          if (!initializedRef.current) {
+            initializedRef.current = true;
+            setSession(s);
+            setUser(s?.user ?? null);
+            if (s?.user) {
+              await fetchProfile(s.user.id);
+            }
+          }
+          unblock();
+          return;
+        }
+
+        // All subsequent events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.)
         setSession(s);
         setUser(s?.user ?? null);
 
         if (s?.user) {
-          // TOKEN_REFRESHED = same user, new JWT — skip redundant DB fetch
           if (event === 'TOKEN_REFRESHED' && loadedUidRef.current === s.user.id) {
-            // profile/role are already correct
+            // profile/role are already correct — skip redundant DB fetch
           } else {
             await fetchProfile(s.user.id);
           }
@@ -71,17 +101,11 @@ export const AuthProvider = ({ children }) => {
           setProfile(null);
           loadedUidRef.current = null;
         }
-
-        // Unblock the UI after the very first event (INITIAL_SESSION)
-        if (event === 'INITIAL_SESSION') {
-          if (mounted) { setLoading(false); clearTimeout(failsafe); }
-        }
       }
     );
 
     return () => {
       mounted = false;
-      clearTimeout(failsafe);
       subscription?.unsubscribe();
     };
   }, []);
