@@ -94,7 +94,7 @@ function AdminDashboard() {
     <AdminWrapper
       title={`Welcome, ${profile?.name || "Admin"}`}
       subtitle="Real-time operational metrics and performance"
-      showSearch={true}
+      showSearch={false}
     >
       <div className="container" style={{ padding: 0 }}>
 

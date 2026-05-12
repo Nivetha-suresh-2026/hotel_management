@@ -15,7 +15,7 @@ export const StaffCreation = () => {
     employmentType: "Full Time",
     branchId: "",
     departmentId: "",
-    role: "",
+    roleId: "",
     shift: "Morning",
     status: "active"
   });
@@ -25,6 +25,7 @@ export const StaffCreation = () => {
   const [staffList, setStaffList] = useState([]);
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -51,7 +52,11 @@ export const StaffCreation = () => {
       .select(`
         *,
         hotel_branches!staff_branch_fkey(branch_name),
-        departments!staff_dept_fkey(name)
+        job_roles!staff_role_id_fkey(
+          role_name,
+          department_id,
+          departments(name)
+        )
       `)
       .order('created_at', { ascending: false });
 
@@ -62,16 +67,49 @@ export const StaffCreation = () => {
   const filteredDepartments = departments.filter(d => d.branch_id === formData.branchId);
   const filteredRoles = jobRoles.filter(r => r.department_id === formData.departmentId);
 
+  const handleEdit = (staff) => {
+    setEditingId(staff.id);
+    setFormData({
+      fullName: staff.full_name,
+      age: staff.age || "",
+      gender: staff.gender || "",
+      mobile: staff.phone || "",
+      address: staff.address || "",
+      identityType: staff.identity_type || "",
+      identityNumber: staff.identity_number || "",
+      employmentType: staff.employment_type || "Full Time",
+      branchId: staff.branch_id,
+      departmentId: staff.job_roles?.department_id || "",
+      roleId: staff.role_id || "",
+      shift: staff.shift || "Morning",
+      status: staff.status || "active"
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this employee?")) return;
+    setLoading(true);
+    const { error } = await supabase.from('staff').delete().eq('id', id);
+    if (!error) {
+      setNotification({ type: "success", message: "Staff record removed" });
+      fetchStaff();
+    } else {
+      setNotification({ type: "error", message: error.message });
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
       const newState = { ...prev, [name]: value };
       if (name === "branchId") {
         newState.departmentId = "";
-        newState.role = "";
+        newState.roleId = "";
       }
       if (name === "departmentId") {
-        newState.role = "";
+        newState.roleId = "";
       }
       return newState;
     });
@@ -99,22 +137,28 @@ export const StaffCreation = () => {
         identity_number: formData.identityNumber,
         employment_type: formData.employmentType,
         branch_id: formData.branchId,
-        department_id: formData.departmentId,
-        role: formData.role,
+        role_id: formData.roleId,
         shift: formData.shift,
         status: formData.status,
         created_by: profile.id
       };
 
-      const { error } = await supabase.from('staff').insert([payload]);
-      if (error) throw error;
+      if (editingId) {
+        const { error } = await supabase.from('staff').update(payload).eq('id', editingId);
+        if (error) throw error;
+        setNotification({ type: "success", message: "Staff updated successfully!" });
+      } else {
+        const { error } = await supabase.from('staff').insert([payload]);
+        if (error) throw error;
+        setNotification({ type: "success", message: "Staff enrolled successfully!" });
+      }
 
-      setNotification({ type: "success", message: "Staff enrolled successfully!" });
       setFormData({ 
         fullName: "", age: "", gender: "", mobile: "", address: "", 
         identityType: "", identityNumber: "", employmentType: "Full Time",
-        branchId: "", departmentId: "", role: "Receptionist", shift: "Morning", status: "active" 
+        branchId: "", departmentId: "", roleId: "", shift: "Morning", status: "active" 
       });
+      setEditingId(null);
       fetchStaff();
     } catch (error) {
       setNotification({ type: "error", message: error.message });
@@ -216,10 +260,10 @@ export const StaffCreation = () => {
               </div>
               <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <label style={{ fontSize: "0.875rem", fontWeight: "600", color: "#1e293b" }}>Job Role</label>
-                <select name="role" value={formData.role} onChange={handleChange} disabled={!formData.departmentId} required>
+                <select name="roleId" value={formData.roleId} onChange={handleChange} disabled={!formData.departmentId} required>
                   <option value="">Select Role...</option>
                   {filteredRoles.map(role => (
-                    <option key={role.id} value={role.role_name}>{role.role_name}</option>
+                    <option key={role.id} value={role.id}>{role.role_name}</option>
                   ))}
                 </select>
                 {filteredRoles.length === 0 && formData.departmentId && (
@@ -235,14 +279,36 @@ export const StaffCreation = () => {
                 </select>
               </div>
             </div>
-            <div style={{ marginTop: "2.5rem", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ marginTop: "2.5rem", display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+              {editingId && (
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setEditingId(null);
+                    setFormData({ 
+                      fullName: "", age: "", gender: "", mobile: "", address: "", 
+                      identityType: "", identityNumber: "", employmentType: "Full Time",
+                      branchId: "", departmentId: "", roleId: "", shift: "Morning", status: "active" 
+                    });
+                  }}
+                  style={{ 
+                    padding: "1rem 2rem", 
+                    background: "#f1f5f9", 
+                    color: "#64748b",
+                    borderRadius: "12px",
+                    border: "none"
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
               <button type="submit" disabled={loading} style={{ 
                 padding: "1rem 3.5rem", 
                 fontSize: "1rem",
                 borderRadius: "12px",
                 boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
               }}>
-                {loading ? "Enrolling Staff..." : "Complete Enrollment"}
+                {loading ? "Processing..." : editingId ? "Update Record" : "Complete Enrollment"}
               </button>
             </div>
           </div>
@@ -265,6 +331,7 @@ export const StaffCreation = () => {
                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Branch / Dept</th>
                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Shift</th>
                     <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase" }}>Status</th>
+                    <th style={{ padding: "1rem 2rem", color: "var(--text-muted)", fontWeight: "600", fontSize: "0.75rem", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -272,11 +339,11 @@ export const StaffCreation = () => {
                     <tr key={staff.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                       <td style={{ padding: "1rem 2rem" }}>
                         <div style={{ fontWeight: "700", color: "#1e293b" }}>{staff.full_name}</div>
-                        <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{staff.role} • {staff.phone}</div>
+                        <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{staff.job_roles?.role_name} • {staff.phone}</div>
                       </td>
                       <td style={{ padding: "1rem 2rem" }}>
                         <div style={{ fontWeight: "600", color: "#475569" }}>{staff.hotel_branches?.branch_name}</div>
-                        <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{staff.departments?.name}</div>
+                        <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{staff.job_roles?.departments?.name}</div>
                       </td>
                       <td style={{ padding: "1rem 2rem" }}>
                         <span style={{ fontSize: "0.875rem", textTransform: "capitalize" }}>{staff.shift}</span>
@@ -291,6 +358,22 @@ export const StaffCreation = () => {
                           fontWeight: "700",
                           textTransform: "uppercase"
                         }}>{staff.status}</span>
+                      </td>
+                      <td style={{ padding: "1rem 2rem", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                          <button 
+                            onClick={() => handleEdit(staff)} 
+                            style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6366f1", fontWeight: "600", fontSize: "0.875rem" }}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(staff.id)} 
+                            style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444", fontWeight: "600", fontSize: "0.875rem" }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

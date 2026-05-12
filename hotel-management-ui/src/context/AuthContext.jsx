@@ -10,37 +10,16 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
     console.log("AuthContext: Initialization started...");
     
-    // Failsafe: Force loading to false after 3 seconds
+    // Failsafe: Force loading to false after 8 seconds (increased from 3s for cold starts)
     const failsafe = setTimeout(() => {
-      console.warn("AuthContext: Initialization timed out. Forcing loading to false.");
-      setLoading(false);
-    }, 3000);
-
-    const setData = async () => {
-      try {
-        console.log("AuthContext: Fetching session...");
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          console.log("AuthContext: User logged in, fetching role via RPC...");
-          await fetchUserRole(session.user.id);
-        } else {
-          console.log("AuthContext: No active session found.");
-        }
-      } catch (error) {
-        console.error('AuthContext Initialization Error:', error);
-      } finally {
+      if (mounted) {
+        console.warn("AuthContext: Initialization timed out. Forcing loading to false.");
         setLoading(false);
-        clearTimeout(failsafe);
-        console.log("AuthContext: Initialization complete.");
       }
-    };
+    }, 8000);
 
     const fetchUserRole = async (userId) => {
       try {
@@ -48,8 +27,10 @@ export const AuthProvider = ({ children }) => {
         const { data, error } = await supabase
           .from("users")
           .select("role")
-          .eq("auth_id", userId) // Corrected to use auth_id
+          .eq("auth_id", userId)
           .maybeSingle();
+
+        if (!mounted) return;
 
         if (error) {
           console.error("AuthContext: Role fetch failed:", error);
@@ -70,12 +51,36 @@ export const AuthProvider = ({ children }) => {
         } else if (userRole === 'admin') {
           setRole('admin');
         } else {
-          console.warn("AuthContext: Unknown role value from RPC:", userRole);
           setRole(null);
         }
       } catch (error) {
         console.error('AuthContext: Unexpected error in fetchUserRole:', error);
-        setRole(null);
+        if (mounted) setRole(null);
+      }
+    };
+
+    const setData = async () => {
+      try {
+        console.log("AuthContext: Fetching session...");
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+        
+        if (session?.user && mounted) {
+          await fetchUserRole(session.user.id);
+        }
+      } catch (error) {
+        console.error('AuthContext Initialization Error:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          clearTimeout(failsafe);
+          console.log("AuthContext: Initialization complete.");
+        }
       }
     };
 
@@ -83,6 +88,8 @@ export const AuthProvider = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("AuthContext: Auth state changed:", _event);
+      if (!mounted) return;
+
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -91,11 +98,14 @@ export const AuthProvider = ({ children }) => {
       } else {
         setRole(null);
       }
+      
       setLoading(false);
       clearTimeout(failsafe);
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(failsafe);
       subscription?.unsubscribe();
     };
   }, []);

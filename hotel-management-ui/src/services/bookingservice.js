@@ -14,52 +14,75 @@ export const createBooking = async (formData) => {
 
     if (!profile) throw new Error("User profile not found");
 
-    // 2. Handle Guest Insertion/Update
-    const { data: guest, error: guestError } = await supabase
+    // 2. Handle Guest Insertion (Check if exists by phone, else create)
+    let guest;
+    const { data: existingGuest } = await supabase
       .from('guests')
-      .upsert({
-        full_name: formData.guestName,
-        phone: formData.contact,
-        email: formData.email,
-        id_proof_number: formData.aadhar,
-        created_by: profile.id
-      }, { onConflict: 'phone' }) 
-      .select()
+      .select('id')
+      .eq('phone', formData.contact)
       .single();
 
-    if (guestError) throw guestError;
+    if (existingGuest) {
+      guest = existingGuest;
+    } else {
+      const { data: newGuest, error: guestError } = await supabase
+        .from('guests')
+        .insert([{
+          full_name: formData.guestName,
+          phone: formData.contact,
+          email: formData.email,
+          id_proof_number: formData.aadhar,
+          created_by: profile.id
+        }])
+        .select()
+        .single();
+      
+      if (guestError) throw guestError;
+      guest = newGuest;
+    }
 
-    // 3. Date Calculations
+    // 3. Fetch Room Details for price calculation
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('room_type')
+      .eq('id', formData.roomId)
+      .single();
+    
+    if (roomError || !room) throw new Error("Selected room not found");
+
+    // 4. Date Calculations
     const checkIn = new Date(formData.checkIn);
     const checkOut = new Date(formData.checkOut);
     const totalNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)) || 1;
     
+    // Using simple logic for prices based on room type
     const prices = {
+      "AC": 5000,
+      "NON AC": 3000,
       "Standard": 4500,
       "Deluxe": 7500,
       "Suite": 15000
     };
-    const pricePerNight = prices[formData.roomType] || 4500;
+    const pricePerNight = prices[room.room_type] || 4000;
     const totalAmount = pricePerNight * totalNights;
 
-    // 4. Fetch a default branch
-    const { data: branch } = await supabase.from('hotel_branches').select('id').limit(1).single();
-    if (!branch) throw new Error("No branches available to book");
-
-    // 5. Create Booking
+    // 5. Create Booking using the new schema
+    // Note: removed created_by from bookings as it's not in the latest schema provided
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert([{
-        branch_id: branch.id,
+        branch_id: formData.branchId,
         guest_id: guest.id,
+        room_id: formData.roomId,
         check_in_date: formData.checkIn,
         check_out_date: formData.checkOut,
         status: 'reserved',
-        price_per_night: pricePerNight,
         total_nights: totalNights,
         total_amount: totalAmount,
-        number_of_guests: parseInt(formData.totalMembers),
-        created_by: profile.id
+        advance_paid: parseFloat(formData.advancePaid) || 0,
+        payment_status: formData.paymentStatus,
+        special_requests: formData.specialRequests,
+        number_of_guests: parseInt(formData.totalMembers)
       }])
       .select()
       .single();
@@ -80,7 +103,8 @@ export const getBookings = async () => {
     .select(`
       *,
       guests (full_name, phone, email, id_proof_number),
-      hotel_branches (branch_name)
+      hotel_branches (branch_name),
+      rooms (room_number, room_type)
     `)
     .order('created_at', { ascending: false });
     

@@ -1,23 +1,30 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import InputField from "../../components/InputField";
 import Button from "../../components/Button";
 import { createBooking } from "../../services/bookingservice";
+import { supabase } from "../../lib/supabaseClient";
 
 function BookingForm() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [branches, setBranches] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [formData, setFormData] = useState({
     guestName: "",
     age: "",
     contact: "",
     email: "",
     aadhar: "",
+    branchId: "",
+    roomId: "",
     checkIn: "",
     checkOut: "",
-    roomType: "Standard",
-    totalMembers: "1"
+    totalMembers: "1",
+    advancePaid: "0",
+    paymentStatus: "pending",
+    specialRequests: ""
   });
 
   const handleNext = (e) => {
@@ -86,9 +93,38 @@ function BookingForm() {
       setFormData(prev => ({ ...prev, [name]: val }));
       return;
     }
+
+    if (name === "branchId") {
+      setFormData(prev => ({ ...prev, [name]: value, roomId: "" }));
+      fetchRooms(value);
+      return;
+    }
     
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  const fetchBranches = async () => {
+    const { data, error } = await supabase.from('hotel_branches').select('id, branch_name');
+    if (error) console.error("Error fetching branches:", error);
+    else setBranches(data || []);
+  };
+
+  const fetchRooms = async (branchId) => {
+    if (!branchId) {
+      setRooms([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('id, room_number, room_type')
+      .eq('branch_id', branchId);
+    if (error) console.error("Error fetching rooms:", error);
+    else setRooms(data || []);
+  };
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
 
   return (
@@ -171,15 +207,32 @@ function BookingForm() {
         ) : (
           <form onSubmit={handleSubmit} className="card" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
             <div style={{ gridColumn: "span 2" }}>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Room Category</label>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Branch</label>
               <select 
-                value={formData.roomType} 
-                onChange={(e) => handleChange("roomType", e.target.value)}
+                value={formData.branchId} 
+                onChange={(e) => handleChange("branchId", e.target.value)}
                 style={{ background: "white" }}
+                required
               >
-                <option value="Standard">Standard Room - ₹4,500/night</option>
-                <option value="Deluxe">Deluxe Room - ₹7,500/night</option>
-                <option value="Suite">Presidential Suite - ₹15,000/night</option>
+                <option value="">Select Branch...</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.branch_name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ gridColumn: "span 2" }}>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Room</label>
+              <select 
+                value={formData.roomId} 
+                onChange={(e) => handleChange("roomId", e.target.value)}
+                style={{ background: "white" }}
+                disabled={!formData.branchId}
+                required
+              >
+                <option value="">{formData.branchId ? "Select Room..." : "Select Branch First"}</option>
+                {rooms.map(r => (
+                  <option key={r.id} value={r.id}>Room {r.room_number} ({r.room_type})</option>
+                ))}
               </select>
             </div>
             <div>
@@ -208,6 +261,43 @@ function BookingForm() {
                 value={formData.totalMembers}
                 onChange={(e) => handleChange("totalMembers", e.target.value)}
                 required
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Advance Paid (₹)</label>
+              <InputField
+                type="number"
+                placeholder="0"
+                value={formData.advancePaid}
+                onChange={(e) => handleChange("advancePaid", e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Payment Status</label>
+              <select 
+                value={formData.paymentStatus} 
+                onChange={(e) => handleChange("paymentStatus", e.target.value)}
+                style={{ background: "white" }}
+              >
+                <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+              </select>
+            </div>
+            <div style={{ gridColumn: "span 2" }}>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Special Requests</label>
+              <textarea 
+                placeholder="Any special requests or notes..."
+                value={formData.specialRequests}
+                onChange={(e) => handleChange("specialRequests", e.target.value)}
+                style={{ 
+                  width: "100%", 
+                  padding: "0.75rem 1rem", 
+                  borderRadius: "var(--radius)", 
+                  border: "1px solid var(--border-color)",
+                  minHeight: "100px",
+                  fontFamily: "inherit"
+                }}
               />
             </div>
             <div style={{ gridColumn: "span 2", marginTop: "1rem", display: "flex", gap: "1rem" }}>
