@@ -3,49 +3,48 @@ import { useNavigate, Link } from "react-router-dom";
 import { PATHS } from "../../routes/paths";
 import Sidebar from "../../components/Sidebar";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
 
 export const AdminWrapper = ({ title, subtitle, children, notification, showSearch, breadcrumbs }) => {
   const [showProfile, setShowProfile] = React.useState(false);
-  const [profile, setProfile] = React.useState(null);
+  const { session, role, profile, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
-  const userRole = localStorage.getItem("userRole");
 
   React.useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase.rpc("get_my_profile");
-      if (!error && data) {
-        setProfile(data);
-        localStorage.setItem("userProfile", JSON.stringify(data));
-      } else {
-        // Fallback to localStorage if RPC fails
-        const savedProfile = JSON.parse(localStorage.getItem("userProfile"));
-        if (savedProfile) setProfile(savedProfile);
-      }
-    } catch (err) {
-      console.error("Error fetching profile in wrapper:", err);
+    if (!authLoading && !session) {
+      console.warn("AdminWrapper: No session found, redirecting to login.");
+      navigate(PATHS.LOGIN);
     }
-  };
+  }, [session, authLoading, navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
+    await signOut();
     navigate("/");
   };
+
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner" style={{ margin: "0 auto 1rem", border: "4px solid #e2e8f0", borderTop: "4px solid var(--primary)", borderRadius: "50%", width: "40px", height: "40px", animation: "spin 1s linear infinite" }}></div>
+          <p style={{ color: "var(--text-muted)", fontWeight: "600" }}>Verifying Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) return null;
 
   return (
     <div className="admin-layout">
       <Sidebar />
       <main className="admin-main">
-        <header style={{ 
-          background: "white", 
-          padding: "1rem 2.5rem", 
-          borderBottom: "1px solid var(--border-color)", 
-          display: "flex", 
-          justifyContent: "space-between", 
+        <header style={{
+          background: "white",
+          padding: "1rem 2.5rem",
+          borderBottom: "1px solid var(--border-color)",
+          display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
           position: "sticky",
           top: 0,
@@ -54,8 +53,8 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             {breadcrumbs && (
-              <button 
-                onClick={() => navigate(-1)} 
+              <button
+                onClick={() => navigate(-1)}
                 style={{ background: "#f1f5f9", border: "none", width: "36px", height: "36px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
               >
                 ←
@@ -66,7 +65,7 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "2px" }}>
                   {breadcrumbs.map((crumb, index) => (
                     <React.Fragment key={index}>
-                      <span 
+                      <span
                         style={{ fontSize: "0.75rem", color: index === breadcrumbs.length - 1 ? "var(--primary)" : "#94a3b8", cursor: crumb.path ? "pointer" : "default", fontWeight: 600 }}
                         onClick={() => crumb.path && navigate(crumb.path)}
                       >
@@ -86,25 +85,25 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
             {showSearch && (
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <span style={{ position: "absolute", left: "1rem", color: "#94a3b8" }}>🔍</span>
-                <input 
-                  type="text" 
-                  placeholder="Search booking, room, etc" 
-                  style={{ width: "260px", padding: "0.5rem 1rem 0.5rem 2.5rem", borderRadius: "12px", background: "#f1f5f9", border: "1px solid transparent", fontSize: "0.875rem" }} 
+                <input
+                  type="text"
+                  placeholder="Search booking, room, etc"
+                  style={{ width: "260px", padding: "0.5rem 1rem 0.5rem 2.5rem", borderRadius: "12px", background: "#f1f5f9", border: "1px solid transparent", fontSize: "0.875rem" }}
                 />
               </div>
             )}
 
             <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-              {userRole !== "owner" && (
+              {role === "admin" && (
                 <Link to={PATHS.BOOKING}>
                   <button style={{ background: "var(--primary)", color: "white", border: "none", borderRadius: "10px", padding: "0.625rem 1.25rem", fontWeight: 600, fontSize: "0.875rem" }}>
                     + New Booking
                   </button>
                 </Link>
               )}
-              
+
               <div style={{ position: "relative" }}>
-                <button 
+                <button
                   onClick={() => setShowProfile(!showProfile)}
                   style={{ background: "#f1f5f9", width: "40px", height: "40px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer", padding: 0 }}
                 >
@@ -112,14 +111,14 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
                 </button>
 
                 {showProfile && (
-                  <div style={{ 
-                    position: "absolute", 
-                    top: "120%", 
-                    right: 0, 
-                    width: "220px", 
-                    background: "white", 
-                    borderRadius: "16px", 
-                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)", 
+                  <div style={{
+                    position: "absolute",
+                    top: "120%",
+                    right: 0,
+                    width: "220px",
+                    background: "white",
+                    borderRadius: "16px",
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
                     border: "1px solid #f1f5f9",
                     padding: "1rem",
                     animation: "slideDown 0.2s ease-out"
@@ -132,16 +131,16 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
                         {profile?.role?.replace(/_/g, " ") || "User"}
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={handleLogout}
-                      style={{ 
-                        width: "100%", 
-                        padding: "0.625rem", 
-                        borderRadius: "10px", 
-                        background: "#fff1f2", 
-                        color: "#e11d48", 
-                        border: "none", 
-                        fontWeight: 600, 
+                      style={{
+                        width: "100%",
+                        padding: "0.625rem",
+                        borderRadius: "10px",
+                        background: "#fff1f2",
+                        color: "#e11d48",
+                        border: "none",
+                        fontWeight: 600,
                         fontSize: "0.875rem",
                         cursor: "pointer",
                         display: "flex",
@@ -160,10 +159,10 @@ export const AdminWrapper = ({ title, subtitle, children, notification, showSear
         </header>
 
         {notification && (
-          <div style={{ 
+          <div style={{
             margin: "1.5rem 2.5rem 0",
-            padding: "0.75rem 1.25rem", 
-            borderRadius: "12px", 
+            padding: "0.75rem 1.25rem",
+            borderRadius: "12px",
             background: notification.type === "success" ? "#f0fdf4" : "#fef2f2",
             color: notification.type === "success" ? "#166534" : "#991b1b",
             fontSize: "0.875rem",
@@ -192,12 +191,12 @@ export const SectionHeader = ({ title, subtitle }) => (
 export const HubCard = ({ title, description, icon, path, color }) => {
   const navigate = useNavigate();
   return (
-    <div 
+    <div
       onClick={() => navigate(path)}
-      className="card" 
-      style={{ 
-        cursor: "pointer", 
-        padding: "1.75rem", 
+      className="card"
+      style={{
+        cursor: "pointer",
+        padding: "1.75rem",
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         border: "1px solid #f1f5f9",
         borderTop: `4px solid ${color}`,
@@ -233,11 +232,11 @@ export const HubCard = ({ title, description, icon, path, color }) => {
 
 export const HubBanner = ({ title, subtitle, imageUrl }) => {
   return (
-    <div className="card" style={{ 
-      padding: "2.5rem", 
-      display: "flex", 
-      alignItems: "center", 
-      gap: "2.5rem", 
+    <div className="card" style={{
+      padding: "2.5rem",
+      display: "flex",
+      alignItems: "center",
+      gap: "2.5rem",
       marginBottom: "2.5rem",
       borderRadius: "32px",
       background: "white",
@@ -245,11 +244,11 @@ export const HubBanner = ({ title, subtitle, imageUrl }) => {
       border: "1px solid #f1f5f9"
     }}>
       <div style={{ position: "relative" }}>
-        <div style={{ 
-          width: "100px", 
-          height: "100px", 
-          borderRadius: "50%", 
-          overflow: "hidden", 
+        <div style={{
+          width: "100px",
+          height: "100px",
+          borderRadius: "50%",
+          overflow: "hidden",
           border: "4px solid white",
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
         }}>

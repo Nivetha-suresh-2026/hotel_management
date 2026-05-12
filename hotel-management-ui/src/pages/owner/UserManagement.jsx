@@ -22,6 +22,7 @@ export const UserManagement = () => {
     const { data, error } = await supabase
       .from('users')
       .select('*')
+      .eq('role', 'admin')
       .order('id', { ascending: false });
 
     if (error) {
@@ -191,10 +192,10 @@ export const UserManagement = () => {
                       <span style={{
                         padding: "0.25rem 0.75rem",
                         borderRadius: "20px",
-                        background: user.role === "admin" ? "#eff6ff" : 
-                                   user.role === "hotel_owner" ? "#fef2f2" : "#f1f5f9",
-                        color: user.role === "admin" ? "#2563eb" : 
-                               user.role === "hotel_owner" ? "#dc2626" : "#475569",
+                        background: user.role === "admin" ? "#eff6ff" :
+                          user.role === "hotel_owner" ? "#fef2f2" : "#f1f5f9",
+                        color: user.role === "admin" ? "#2563eb" :
+                          user.role === "hotel_owner" ? "#dc2626" : "#475569",
                         fontSize: "0.75rem",
                         fontWeight: "700",
                         textTransform: "uppercase",

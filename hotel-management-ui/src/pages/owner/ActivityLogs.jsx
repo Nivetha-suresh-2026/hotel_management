@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { AdminWrapper, SectionHeader } from "../admin/AdminWrapper";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
 
 const ActivityLogs = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const { session, role, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    fetchActivities();
-  }, []);
+    if (!authLoading && session && role === 'owner') {
+      fetchActivities();
+    }
+  }, [authLoading, session, role]);
 
   const fetchActivities = async () => {
     try {
@@ -21,7 +25,7 @@ const ActivityLogs = () => {
         .from('hotel_branches')
         .select('branch_name, created_at')
         .order('created_at', { ascending: false });
-      
+
       if (branches) {
         branches.forEach(b => {
           allActivities.push({
@@ -41,7 +45,7 @@ const ActivityLogs = () => {
         .from('rooms')
         .select('room_number, created_at, hotel_branches(branch_name)')
         .order('created_at', { ascending: false });
-      
+
       if (rooms) {
         rooms.forEach(r => {
           allActivities.push({
@@ -56,33 +60,57 @@ const ActivityLogs = () => {
         });
       }
 
-      // 3. Fetch Staff from LocalStorage
-      const staffList = JSON.parse(localStorage.getItem("staff") || "[]");
-      staffList.forEach(s => {
-        allActivities.push({
-          id: `staff-${s.id}`,
-          type: "staff",
-          title: "Staff Enrolled",
-          description: `${s.staffName} was enrolled as ${s.role} in ${s.branchName}.`,
-          timestamp: new Date(s.id), // id is Date.now()
-          icon: "👥",
-          color: "#10b981"
-        });
-      });
+      // 3. Fetch Staff from Supabase
+      const { data: staffList } = await supabase
+        .from('staff')
+        .select(`
+          full_name, 
+          created_at, 
+          hotel_branches(branch_name), 
+          job_roles(role_name)
+        `)
+        .order('created_at', { ascending: false });
 
-      // 4. Fetch Bookings from LocalStorage
-      const bookings = JSON.parse(localStorage.getItem("bookings") || "[]");
-      bookings.forEach(b => {
-        allActivities.push({
-          id: `booking-${b.id}`,
-          type: "booking",
-          title: "New Booking Confirmed",
-          description: `Reservation for ${b.guestName} (${b.roomType}) from ${b.checkIn} to ${b.checkOut}.`,
-          timestamp: new Date(b.id), // id is Date.now()
-          icon: "📅",
-          color: "#f59e0b"
+      if (staffList) {
+        staffList.forEach(s => {
+          allActivities.push({
+            id: `staff-${s.created_at}`,
+            type: "staff",
+            title: "Staff Enrolled",
+            description: `${s.full_name} was enrolled as ${s.job_roles?.role_name || 'Staff'} in ${s.hotel_branches?.branch_name || 'a branch'}.`,
+            timestamp: new Date(s.created_at),
+            icon: "👥",
+            color: "#10b981"
+          });
         });
-      });
+      }
+
+      // 4. Fetch Bookings from Supabase
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select(`
+          id, 
+          created_at, 
+          room_type, 
+          check_in_date, 
+          check_out_date, 
+          guests(full_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (bookings) {
+        bookings.forEach(b => {
+          allActivities.push({
+            id: `booking-${b.id}`,
+            type: "booking",
+            title: "New Booking Confirmed",
+            description: `Reservation for ${b.guests?.full_name || 'Guest'} (${b.room_type}) from ${b.check_in_date} to ${b.check_out_date}.`,
+            timestamp: new Date(b.created_at),
+            icon: "📅",
+            color: "#f59e0b"
+          });
+        });
+      }
 
       // Sort all by timestamp descending
       allActivities.sort((a, b) => b.timestamp - a.timestamp);
@@ -95,8 +123,8 @@ const ActivityLogs = () => {
     }
   };
 
-  const filteredActivities = filter === "all" 
-    ? activities 
+  const filteredActivities = filter === "all"
+    ? activities
     : activities.filter(a => a.type === filter);
 
   const stats = {
@@ -107,6 +135,18 @@ const ActivityLogs = () => {
     bookings: activities.filter(a => a.type === "booking").length,
   };
 
+  if (authLoading) return null;
+
+  if (role !== "owner") {
+    return (
+      <div style={{ textAlign: "center", padding: "5rem" }}>
+        <h2>Access Denied</h2>
+        <p>You do not have permission to view the Activity Audit logs.</p>
+        <button onClick={() => window.location.href = "/"} style={{ marginTop: "1rem", padding: "0.5rem 1rem", borderRadius: "8px", background: "var(--primary)", color: "white", border: "none", fontWeight: 600 }}>Go to Login</button>
+      </div>
+    );
+  }
+
   if (loading) return (
     <AdminWrapper title="Activity Audit" subtitle="Loading logs...">
       <div style={{ textAlign: "center", padding: "5rem" }}>Processing audit logs...</div>
@@ -114,18 +154,18 @@ const ActivityLogs = () => {
   );
 
   return (
-    <AdminWrapper 
-      title="Admin Activity Logs" 
+    <AdminWrapper
+      title="Admin Activity Logs"
       subtitle="Complete audit trail of system modifications and transactions"
     >
       <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: "2rem", alignItems: "start" }}>
-        
+
         {/* Main Feed */}
         <div className="card" style={{ padding: "2rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
             <SectionHeader title="Activity Stream" subtitle="Recent administrative actions" />
-            <select 
-              value={filter} 
+            <select
+              value={filter}
               onChange={(e) => setFilter(e.target.value)}
               style={{ padding: "0.5rem 1rem", borderRadius: "10px", background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: "0.875rem", fontWeight: "600" }}
             >
@@ -147,14 +187,14 @@ const ActivityLogs = () => {
               ) : (
                 filteredActivities.map((activity) => (
                   <div key={activity.id} style={{ display: "flex", gap: "1.5rem", position: "relative", zIndex: 1 }}>
-                    <div style={{ 
-                      width: "42px", 
-                      height: "42px", 
-                      borderRadius: "12px", 
-                      background: "white", 
-                      border: `2px solid ${activity.color}`, 
-                      display: "flex", 
-                      alignItems: "center", 
+                    <div style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "12px",
+                      background: "white",
+                      border: `2px solid ${activity.color}`,
+                      display: "flex",
+                      alignItems: "center",
                       justifyContent: "center",
                       fontSize: "1.25rem",
                       boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)"

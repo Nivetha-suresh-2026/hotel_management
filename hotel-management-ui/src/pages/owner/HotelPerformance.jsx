@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminWrapper, SectionHeader } from "../admin/AdminWrapper";
 import { supabase } from "../../lib/supabaseClient";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend, AreaChart, Area 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, AreaChart, Area
 } from "recharts";
 import { PATHS } from "../../routes/paths";
+import { useAuth } from "../../hooks/useAuth";
 
 const HotelPerformance = () => {
   const [stats, setStats] = useState({
@@ -19,10 +21,14 @@ const HotelPerformance = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBranch, setSelectedBranch] = useState(null);
+  const { session, role, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchPerformanceData();
-  }, []);
+    if (!authLoading && session && role === 'owner') {
+      fetchPerformanceData();
+    }
+  }, [authLoading, session, role]);
 
   const fetchPerformanceData = async () => {
     try {
@@ -31,7 +37,7 @@ const HotelPerformance = () => {
       const [roomsRes, branchRes, userRes, staffRes, bookingRes] = await Promise.all([
         supabase.from('rooms').select(`*, hotel_branches!fk_branch(branch_name)`),
         supabase.from('hotel_branches').select('*'),
-        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
         supabase.from('staff').select('*', { count: 'exact' }).eq('status', 'active'),
         supabase.from('bookings').select('*, hotel_branches!bookings_branch_fkey(branch_name)')
       ]);
@@ -51,13 +57,13 @@ const HotelPerformance = () => {
       const occupancyByBranch = branches.map(branch => {
         const branchRooms = rooms.filter(r => r.branch_id === branch.id);
         const total = branchRooms.length || 0;
-        
+
         // Count active bookings for this branch (reserved or checked_in)
-        const occupiedCount = bookings.filter(b => 
-          b.branch_id === branch.id && 
+        const occupiedCount = bookings.filter(b =>
+          b.branch_id === branch.id &&
           (b.status === 'reserved' || b.status === 'checked_in')
         ).length;
-        
+
         const roomTypes = branchRooms.reduce((acc, curr) => {
           acc[curr.room_type] = (acc[curr.room_type] || 0) + 1;
           return acc;
@@ -96,11 +102,23 @@ const HotelPerformance = () => {
     }
   };
 
-  const filteredBranches = branchData.filter(b => 
+  const filteredBranches = branchData.filter(b =>
     b.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+  if (authLoading) return null;
+
+  if (role !== "owner") {
+    return (
+      <div style={{ textAlign: "center", padding: "5rem" }}>
+        <h2>Access Denied</h2>
+        <p>You do not have permission to view the Hotel Performance analytics.</p>
+        <button onClick={() => navigate("/")} style={{ marginTop: "1rem", padding: "0.5rem 1rem", borderRadius: "8px", background: "var(--primary)", color: "white", border: "none", fontWeight: 600 }}>Go to Login</button>
+      </div>
+    );
+  }
 
   if (loading) return (
     <AdminWrapper title="Hotel Performance" subtitle="Analyzing business operations">
@@ -111,29 +129,29 @@ const HotelPerformance = () => {
   );
 
   return (
-    <AdminWrapper 
-      title="Hotel Performance" 
+    <AdminWrapper
+      title="Hotel Performance"
       subtitle="Real-time operational metrics and branch analytics"
     >
       {/* Search and Branch Directory Section */}
       <div className="card" style={{ padding: "1.5rem", marginBottom: "2rem", display: "flex", gap: "1rem", alignItems: "center", background: "#f8fafc" }}>
         <div style={{ position: "relative", flex: 1 }}>
           <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
-          <input 
-            type="text" 
-            placeholder="Search branches by name..." 
+          <input
+            type="text"
+            placeholder="Search branches by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ 
-              width: "100%", 
-              padding: "12px 12px 12px 40px", 
-              borderRadius: "12px", 
+            style={{
+              width: "100%",
+              padding: "12px 12px 12px 40px",
+              borderRadius: "12px",
               border: "1px solid #e2e8f0",
               fontSize: "0.9375rem"
             }}
           />
         </div>
-        <button 
+        <button
           onClick={fetchPerformanceData}
           style={{ background: "white", border: "1px solid #e2e8f0", padding: "12px 20px", borderRadius: "12px", fontWeight: "600", color: "#6366f1", cursor: "pointer" }}
         >
@@ -154,12 +172,12 @@ const HotelPerformance = () => {
           <SectionHeader title="Branches" subtitle="Select a branch for details" />
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
             {filteredBranches.map((branch) => (
-              <div 
-                key={branch.id} 
+              <div
+                key={branch.id}
                 onClick={() => setSelectedBranch(branch)}
-                style={{ 
-                  padding: "1rem", 
-                  borderRadius: "12px", 
+                style={{
+                  padding: "1rem",
+                  borderRadius: "12px",
                   cursor: "pointer",
                   transition: "all 0.2s",
                   background: selectedBranch?.id === branch.id ? "#6366f1" : "white",
@@ -242,13 +260,13 @@ const HotelPerformance = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={branchData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <Tooltip 
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <Tooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  cursor={{fill: '#f8fafc'}}
+                  cursor={{ fill: '#f8fafc' }}
                 />
-                <Legend iconType="circle" wrapperStyle={{paddingTop: '20px'}} />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                 <Bar dataKey="total" fill="#e2e8f0" radius={[6, 6, 0, 0]} name="Total Rooms" />
                 <Bar dataKey="occupied" fill="#6366f1" radius={[6, 6, 0, 0]} name="Occupied Rooms" />
               </BarChart>
@@ -271,8 +289,8 @@ const HotelPerformance = () => {
               ]}>
                 <defs>
                   <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

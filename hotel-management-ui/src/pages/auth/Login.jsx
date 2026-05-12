@@ -1,101 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { PATHS } from "../../routes/paths";
 import loginBg from "../../assets/login-bg.png";
 import InputField from "../../components/InputField";
 import Button from "../../components/Button";
+import { useAuth } from "../../hooks/useAuth";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { signIn, session, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Single unified effect:
+  // - If already logged in → redirect to correct dashboard
+  // - If not logged in → clear any stale localStorage data
+  useEffect(() => {
+    if (authLoading) return; // Wait for auth to initialize
+    if (session && role) {
+      if (role === 'owner') navigate('/owner');
+      else if (role === 'admin') navigate('/admin');
+    } else if (!session) {
+      // Safely clear stale data — no signOut needed (avoids race condition)
+      localStorage.clear();
+    }
+  }, [authLoading, session, role, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
-    if (!email || !password) {
-      alert("Please enter email and password.");
-      return;
-    }
-
+    if (!email || !password) { alert('Please enter email and password.'); return; }
     setLoading(true);
-
     try {
-      // STEP 0: Force clear any existing stale session
-      await supabase.auth.signOut();
-
-      // STEP 1: Sign in
-      const { data: authData, error: authError } =
-        await supabase.auth.signInWithPassword({ email, password });
-
-      if (authError) {
-        alert(`Login failed: ${authError.message}`);
-        return;
-      }
-
-      console.log("✅ Auth success, user id:", authData.user.id);
-
-      // STEP 2: Fetch role from DB via direct query (targeting auth_id)
-      const { data: profile, error: roleError } = await supabase
-        .from("users")
-        .select("role")
-        .eq("auth_id", authData.user.id) // Corrected to use auth_id
-        .maybeSingle();
-
-      if (roleError) {
-        alert(`Profile error: ${roleError.message}`);
-        await supabase.auth.signOut();
-        return;
-      }
-
-      if (!profile) {
-        alert("Your account was created, but your profile was not found. Please contact support.");
-        await supabase.auth.signOut();
-        return;
-      }
-
-      const userRole = profile?.role;
-
-      if (!userRole) {
-        alert("No profile found for this account.");
-        await supabase.auth.signOut();
-        return;
-      }
-
-      // STEP 3: Map DB role to app role and save to localStorage
-      let appRole = "";
-      if (userRole === "hotel_owner") appRole = "owner";
-      else if (userRole === "admin")  appRole = "admin";
-      else {
-        alert("Invalid role detected.");
-        await supabase.auth.signOut();
-        return;
-      }
-
-      localStorage.setItem("userRole",  appRole);
-      localStorage.setItem("userId",    authData.user.id);
-      localStorage.setItem("userName",
-        authData.user.user_metadata?.full_name ||
-        authData.user.email.split('@')[0]
-      );
-      localStorage.setItem("userEmail", authData.user.email);
-
-      // STEP 4: Redirect based on role (Your exact logic)
-      if (profile.role === "hotel_owner") {
-        navigate("/owner");
-      } else if (profile.role === "admin") {
-        navigate("/admin");
-      }
-
+      // Just sign in — AuthContext's onAuthStateChange will fire SIGNED_IN,
+      // fetch the profile, set the role, and the redirect useEffect below handles navigation.
+      await signIn(email, password);
     } catch (err) {
-      console.error("Login Error Object:", err);
-      const errorMsg = err.message || JSON.stringify(err);
-      alert(`System Error: ${errorMsg}`);
-    } finally {
+      console.error('Login error:', err);
+      alert(`Login failed: ${err.message || 'An unexpected error occurred'}`);
       setLoading(false);
     }
+    // Note: setLoading(false) is intentionally NOT in finally here.
+    // The redirect useEffect will unmount this component when role is set,
+    // so we leave loading=true (shows "Signing in...") until navigation happens.
   };
 
   return (

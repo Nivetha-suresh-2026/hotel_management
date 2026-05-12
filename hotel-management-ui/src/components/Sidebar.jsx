@@ -1,35 +1,30 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { PATHS } from "../routes/paths";
+import { useAuth } from "../hooks/useAuth";
 
 function Sidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const userRole = localStorage.getItem("userRole");
+  const { role } = useAuth();
 
   const adminMenu = [
-    { name: "Dashboard", path: PATHS.ADMIN_DASHBOARD, icon: "📊" },
-    { name: "Branch Creation", path: PATHS.ADMIN_BRANCHES, icon: "📍" },
-    { name: "Room Creation", path: PATHS.ADMIN_ROOMS, icon: "🏨" },
-    { name: "Department", path: PATHS.ADMIN_DEPARTMENTS, icon: "🏢" },
-    { name: "Staff Creation", path: PATHS.ADMIN_STAFF, icon: "👥" },
-    { name: "Guest Details", path: PATHS.ADMIN_GUESTS, icon: "📋" },
-    { name: "Staff Details", path: PATHS.ADMIN_STAFF_DETAILS, icon: "📝" },
+    { name: "Dashboard",      path: PATHS.ADMIN_DASHBOARD,    icon: "📊" },
+    { name: "Branch Creation",path: PATHS.ADMIN_BRANCHES,     icon: "📍" },
+    { name: "Room Creation",  path: PATHS.ADMIN_ROOMS,        icon: "🏨" },
+    { name: "Department",     path: PATHS.ADMIN_DEPARTMENTS,  icon: "🏢" },
+    { name: "Staff Creation", path: PATHS.ADMIN_STAFF,        icon: "👥" },
+    { name: "Guest Details",  path: PATHS.ADMIN_GUESTS,       icon: "📋" },
+    { name: "Staff Details",  path: PATHS.ADMIN_STAFF_DETAILS,icon: "📝" },
   ];
 
   const ownerMenu = [
-    { name: "Overview", path: PATHS.OWNER_DASHBOARD, icon: "📈" },
-    { name: "Hotel Performance", path: PATHS.OWNER_PERFORMANCE, icon: "🏨" },
-    { name: "Activity Logs", path: PATHS.OWNER_ACTIVITY, icon: "🕵️" },
-    { name: "Role Allocation", path: PATHS.OWNER_USERS, icon: "🔑" },
+    { name: "Overview",          path: PATHS.OWNER_DASHBOARD,  icon: "📈" },
+    { name: "Hotel Performance", path: PATHS.OWNER_PERFORMANCE,icon: "🏨" },
+    { name: "Activity Logs",     path: PATHS.OWNER_ACTIVITY,   icon: "🕵️" },
+    { name: "Role Allocation",   path: PATHS.OWNER_USERS,      icon: "🔑" },
   ];
 
-  const menuItems = userRole === "admin" ? adminMenu : ownerMenu;
-
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    navigate("/");
-  };
+  // Use AuthContext role as single source of truth — never localStorage
+  const menuItems = role === "admin" ? adminMenu : ownerMenu;
 
   return (
     <aside className="sidebar">
@@ -48,7 +43,6 @@ function Sidebar() {
           </Link>
         ))}
       </nav>
-
     </aside>
   );
 }

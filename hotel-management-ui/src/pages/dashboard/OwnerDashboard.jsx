@@ -4,9 +4,11 @@ import { supabase } from "../../lib/supabaseClient";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { PATHS } from "../../routes/paths";
 import { AdminWrapper } from "../admin/AdminWrapper";
+import { useAuth } from "../../hooks/useAuth";
 
 function OwnerDashboard() {
   const navigate = useNavigate();
+  const { session, role, profile, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({
     staffCount: 0,
     adminCount: 0,
@@ -14,23 +16,27 @@ function OwnerDashboard() {
     branchCount: 0
   });
   const [loading, setLoading] = useState(true);
-  const userRole = localStorage.getItem("userRole");
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (!authLoading && session && role === 'owner') {
+      fetchDashboardData();
+    }
+  }, [authLoading, session, role]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // 1. Staff from LocalStorage
-      const staff = JSON.parse(localStorage.getItem("staff") || "[]");
-      
-      // 2. Admins from Supabase
+
+      // 1. Staff from Supabase
+      const { count: staffCount } = await supabase
+        .from('staff')
+        .select('*', { count: 'exact', head: true });
+
+      // 2. Admins from Supabase (filtered by role)
       const { count: adminCount } = await supabase
         .from('users')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'admin');
 
       // 3. Rooms from Supabase
       const { count: roomCount } = await supabase
@@ -43,7 +49,7 @@ function OwnerDashboard() {
         .select('*', { count: 'exact', head: true });
 
       setStats({
-        staffCount: staff.length,
+        staffCount: staffCount || 0,
         adminCount: adminCount || 0,
         roomCount: roomCount || 0,
         branchCount: branchCount || 0
@@ -56,12 +62,17 @@ function OwnerDashboard() {
     }
   };
 
-  if (userRole !== "owner") {
+  if (authLoading) return null;
+
+  // Session exists but role hasn't been fetched from DB yet — keep waiting
+  if (session && !role) return null;
+
+  if (!session || role !== "owner") {
     return (
       <div style={{ textAlign: "center", padding: "5rem" }}>
         <h2>Access Denied</h2>
         <p>You do not have permission to view the Owner Portal.</p>
-        <button onClick={() => navigate("/")}>Go to Login</button>
+        <button onClick={() => navigate("/")} style={{ marginTop: "1rem", padding: "0.5rem 1rem", borderRadius: "8px", background: "var(--primary)", color: "white", border: "none", fontWeight: 600 }}>Go to Login</button>
       </div>
     );
   }
@@ -108,7 +119,7 @@ function OwnerDashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
                   <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{fill: '#f8fafc'}} />
+                  <Tooltip cursor={{ fill: '#f8fafc' }} />
                   <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -126,7 +137,7 @@ function OwnerDashboard() {
               <p style={{ fontSize: "0.875rem", color: "#94a3b8", lineHeight: "1.6" }}>
                 Track real-time system changes, including room creations, branch registrations, and staff onboarding events.
               </p>
-              <button 
+              <button
                 onClick={() => navigate(PATHS.OWNER_ACTIVITY)}
                 style={{ width: "100%", marginTop: "1.5rem", background: "#1e293b", border: "none", color: "#38bdf8", padding: "12px", borderRadius: "8px", fontSize: "0.875rem", cursor: "pointer", fontWeight: "600" }}
               >

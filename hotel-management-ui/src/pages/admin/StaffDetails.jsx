@@ -2,6 +2,7 @@ import React from "react";
 import { AdminWrapper } from "./AdminWrapper";
 import { PATHS } from "../../routes/paths";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
 
 export const StaffDetails = () => {
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -11,10 +12,13 @@ export const StaffDetails = () => {
   const [branches, setBranches] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
   const [staffList, setStaffList] = React.useState([]);
+  const { session, loading: authLoading } = useAuth();
 
   React.useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (!authLoading && session) {
+      fetchInitialData();
+    }
+  }, [session, authLoading]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -25,7 +29,7 @@ export const StaffDetails = () => {
 
     if (branchRes.data) setBranches(branchRes.data);
     if (deptRes.data) setDepartments(deptRes.data);
-    
+
     fetchStaff();
   };
 
@@ -65,8 +69,8 @@ export const StaffDetails = () => {
   });
 
   return (
-    <AdminWrapper 
-      title="Staff Directory" 
+    <AdminWrapper
+      title="Staff Directory"
       subtitle="Comprehensive view of all active employees"
       breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Staff Directory" }]}
     >
@@ -134,27 +138,27 @@ export const StaffDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                 {filteredStaff.map(staff => (
-                   <tr key={staff.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                     <td style={{ padding: "1.25rem 2rem" }}>
-                       <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                         <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{(staff.full_name || "S").charAt(0)}</div>
-                         <div>
-                           <div style={{ fontWeight: "700", fontSize: "1rem" }}>{staff.full_name}</div>
-                           <div style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>{staff.phone}</div>
-                         </div>
-                       </div>
-                     </td>
-                     <td style={{ padding: "1.25rem 2rem" }}>
-                       <div style={{ fontWeight: "600" }}>{staff.hotel_branches?.branch_name}</div>
-                       <div style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>{staff.job_roles?.departments?.name} • {staff.job_roles?.role_name}</div>
-                     </td>
-                     <td style={{ padding: "1.25rem 2rem" }}><div style={{ fontFamily: "monospace", letterSpacing: "0.05em", color: "#475569" }}>{(staff.identity_number || "").replace(/(\d{4})/g, "$1 ").trim()}</div></td>
-                     <td style={{ padding: "1.25rem 2rem" }}>
-                       <span style={{ padding: "0.375rem 0.75rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "800", textTransform: "uppercase", background: staff.status === "active" ? "#dcfce7" : "#fee2e2", color: staff.status === "active" ? "#166534" : "#991b1b" }}>{staff.status}</span>
-                     </td>
-                   </tr>
-                 ))}
+                {filteredStaff.map(staff => (
+                  <tr key={staff.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                    <td style={{ padding: "1.25rem 2rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                        <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{(staff.full_name || "S").charAt(0)}</div>
+                        <div>
+                          <div style={{ fontWeight: "700", fontSize: "1rem" }}>{staff.full_name}</div>
+                          <div style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>{staff.phone}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: "1.25rem 2rem" }}>
+                      <div style={{ fontWeight: "600" }}>{staff.hotel_branches?.branch_name}</div>
+                      <div style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>{staff.job_roles?.departments?.name} • {staff.job_roles?.role_name}</div>
+                    </td>
+                    <td style={{ padding: "1.25rem 2rem" }}><div style={{ fontFamily: "monospace", letterSpacing: "0.05em", color: "#475569" }}>{(staff.identity_number || "").replace(/(\d{4})/g, "$1 ").trim()}</div></td>
+                    <td style={{ padding: "1.25rem 2rem" }}>
+                      <span style={{ padding: "0.375rem 0.75rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "800", textTransform: "uppercase", background: staff.status === "active" ? "#dcfce7" : "#fee2e2", color: staff.status === "active" ? "#166534" : "#991b1b" }}>{staff.status}</span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

@@ -2,11 +2,11 @@ import React from "react";
 import { AdminWrapper } from "../admin/AdminWrapper";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
 
 function AdminDashboard() {
   const navigate = useNavigate();
-  const userRole = localStorage.getItem("userRole");
-  const [profile, setProfile] = React.useState(null);
+  const { session, role, profile, loading: authLoading } = useAuth();
   const [stats, setStats] = React.useState({
     staffCount: 0,
     guestsToday: 0,
@@ -18,22 +18,24 @@ function AdminDashboard() {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (userRole !== "admin") return;
-    fetchDashboardData();
-  }, [userRole]);
+    if (!authLoading && role === 'admin' && session) {
+      fetchDashboardData();
+    }
+  }, [role, session, authLoading]);
+
+  // Re-fetch data when user returns to this tab from another website
+  React.useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && role === 'admin' && session) {
+        fetchDashboardData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [role, session]);
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch profile using security definer function (no RLS recursion)
-      const { data: profileData, error: profileError } =
-        await supabase.rpc("get_my_profile");
-
-      if (profileError) throw profileError;
-      setProfile(profileData);
-
-      // Save to localStorage for other components
-      localStorage.setItem("userProfile", JSON.stringify(profileData));
-
       const today = new Date().toISOString().split("T")[0];
 
       // Fetch staff count
@@ -72,19 +74,32 @@ function AdminDashboard() {
     }
   };
 
-  if (userRole !== "admin") {
+  // While auth is initializing, show spinner (not blank page)
+  if (authLoading || (session && !role)) {
     return (
-      <div style={{ textAlign: "center", padding: "5rem" }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ border: '4px solid #e2e8f0', borderTop: '4px solid #6366f1', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+          <p style={{ color: '#64748b', fontFamily: 'sans-serif' }}>Loading dashboard...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session || role !== 'admin') {
+    return (
+      <div style={{ textAlign: 'center', padding: '5rem' }}>
         <h2>Access Denied</h2>
         <p>You do not have permission to view the Admin Dashboard.</p>
-        <button onClick={() => navigate("/")}>Go to Login</button>
+        <button onClick={() => navigate('/')} style={{ marginTop: '1rem', padding: '0.5rem 1rem', borderRadius: '8px', background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 600 }}>Go to Login</button>
       </div>
     );
   }
 
   const statCards = [
     { title: "Total Staff", value: stats.staffCount, icon: "👥", color: "#6366f1", trend: "Active members" },
-    { title: "Confirmed Guests", value: stats.guestsToday, icon: "🏨", color: "#10b981", trend: "Currently staying" },
+    { title: "Confirmed Guests", value: stats.guestsToday, icon: "🏨", color: "#10b981", trend: "Currently booked" },
     { title: "Today Check-In", value: stats.checkIn, icon: "🔑", color: "#3b82f6", trend: "Arriving today" },
     { title: "Today Check-Out", value: stats.checkOut, icon: "🚪", color: "#f43f5e", trend: "Departing today" },
     { title: "Today Cash Collection", value: `₹${stats.cashCollection.toLocaleString()}`, icon: "💰", color: "#f59e0b", trend: "From today's check-ins" }
