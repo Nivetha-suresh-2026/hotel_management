@@ -14,24 +14,39 @@ export const GuestDetails = () => {
   }, []);
 
   const fetchGuests = async () => {
+    // Calculate today's start date (midnight)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+
     const { data, error } = await supabase
-      .from('guests')
-      .select('*')
+      .from('bookings')
+      .select(`
+        created_at,
+        guests (id, full_name, phone, email, id_proof_number)
+      `)
+      .gte('created_at', todayISO)
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error("Error fetching guests:", error);
+      console.error("Error fetching today's guests:", error);
     } else {
-      // Map the DB columns to the UI state names if they differ
-      const mappedGuests = data.map(g => ({
-        id: g.id,
-        guestName: g.full_name,
-        contact: g.phone,
-        email: g.email,
-        aadhar: g.id_proof_number,
-        created_at: g.created_at
-      }));
-      setGuests(mappedGuests);
+      // Map and deduplicate guests
+      const guestMap = new Map();
+      data?.forEach(item => {
+        const g = item.guests;
+        if (g && !guestMap.has(g.id)) {
+          guestMap.set(g.id, {
+            id: g.id,
+            guestName: g.full_name,
+            contact: g.phone,
+            email: g.email,
+            aadhar: g.id_proof_number,
+            bookedAt: item.created_at
+          });
+        }
+      });
+      setGuests(Array.from(guestMap.values()));
     }
   };
 
@@ -91,12 +106,12 @@ export const GuestDetails = () => {
   return (
     <AdminWrapper 
       title="Guest Directory" 
-      subtitle="Search and view historical guest records"
+      subtitle="View guests who have made bookings today"
       breadcrumbs={[{ label: "Dashboard", path: PATHS.ADMIN_DASHBOARD }, { label: "Guests" }]}
     >
       <div className="card" style={{ padding: 0, overflow: "hidden", boxShadow: "var(--shadow-premium)" }}>
         <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid var(--border-color)", background: "#fcfcfc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <SectionHeader title="Guest List" subtitle={`${filteredGuests.length} records found`} />
+          <SectionHeader title="Today's Bookings" subtitle={`${filteredGuests.length} active records`} />
           <div style={{ position: "relative" }}>
             <input 
               type="text" 
