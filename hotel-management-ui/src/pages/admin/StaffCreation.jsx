@@ -295,11 +295,36 @@ export const StaffCreation = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this employee?")) return;
+    if (!window.confirm("Are you sure you want to permanently delete this employee? This will also remove their assigned tasks.")) return;
+    
     setLoading(true);
-    const { error } = await supabase.from("staff").delete().eq("id", id);
-    if (!error) { notify("success", "Staff record removed"); fetchStaff(); }
-    else { notify("error", error.message); setLoading(false); }
+    try {
+      // 1. Delete assigned tasks first to avoid FK constraint issues
+      const { error: taskErr } = await supabase
+        .from("assigned_tasks")
+        .delete()
+        .eq("staff_id", id);
+      
+      if (taskErr) {
+        console.warn("Task cleanup warning:", taskErr.message);
+      }
+
+      // 2. Delete the staff record
+      const { error: staffErr } = await supabase
+        .from("staff")
+        .delete()
+        .eq("id", id);
+
+      if (staffErr) throw staffErr;
+
+      notify("success", "Staff member and associated tasks removed.");
+      fetchStaff();
+    } catch (err) {
+      console.error("Staff deletion error:", err);
+      notify("error", `Failed to delete: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const cancelEdit = () => { setEditingId(null); setFormData(EMPTY_FORM); setStep(1); };
@@ -567,8 +592,30 @@ export const StaffCreation = () => {
                         </span>
                       </td>
                       <td style={{ padding: "1rem 1.5rem", textAlign: "right" }}>
-                        <button onClick={() => handleEdit(s)} style={{ background: "none", border: "none", color: "#6366f1", fontWeight: 700, cursor: "pointer", marginRight: 12 }}>Edit</button>
-                        <button onClick={() => handleDelete(s.id)} style={{ background: "none", border: "none", color: "#ef4444", fontWeight: 700, cursor: "pointer" }}>Delete</button>
+                        <button 
+                          onClick={() => handleEdit(s)} 
+                          style={{ 
+                            background: "#eff6ff", border: "1px solid #dbeafe", color: "#2563eb", 
+                            padding: "0.5rem 1rem", borderRadius: "8px", fontWeight: 700, 
+                            cursor: "pointer", marginRight: 12, transition: "all 0.2s" 
+                          }}
+                          onMouseEnter={(e) => e.target.style.background = "#dbeafe"}
+                          onMouseLeave={(e) => e.target.style.background = "#eff6ff"}
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(s.id)} 
+                          style={{ 
+                            background: "#fef2f2", border: "1px solid #fee2e2", color: "#dc2626", 
+                            padding: "0.5rem 1rem", borderRadius: "8px", fontWeight: 700, 
+                            cursor: "pointer", transition: "all 0.2s" 
+                          }}
+                          onMouseEnter={(e) => e.target.style.background = "#fee2e2"}
+                          onMouseLeave={(e) => e.target.style.background = "#fef2f2"}
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
