@@ -126,7 +126,29 @@ export const RoomCreation = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ... (handleDeleteRoom remains the same) ...
+  const handleDeleteRoom = async (room) => {
+    if (!window.confirm(`Are you sure you want to delete Room #${room.room_number}? This might fail if there are active bookings.`)) return;
+
+    try {
+      // Deleting a room will fail if it has active bookings (Foreign Key Constraint)
+      const { error } = await supabase.from('rooms').delete().eq('id', room.id);
+
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error("Cannot delete this room because it has active or past bookings. Please remove the bookings first or mark the room as inactive.");
+        }
+        throw error;
+      }
+
+      setNotification({ type: "success", message: `Room #${room.room_number} deleted successfully.` });
+      fetchRooms();
+    } catch (err) {
+      console.error("Room deletion error:", err);
+      setNotification({ type: "error", message: err.message });
+    } finally {
+      setTimeout(() => setNotification(null), 4000);
+    }
+  };
 
   return (
     <AdminWrapper title="Room Setup" subtitle="Configure inventory and amenities" notification={notification}>
@@ -259,14 +281,22 @@ export const RoomCreation = () => {
                             ✏️
                           </button>
                           <button 
-                            onClick={async () => {
-                              if (window.confirm("Delete this room?")) {
-                                const { error } = await supabase.from('rooms').delete().eq('id', room.id);
-                                if (!error) fetchRooms();
-                              }
+                            onClick={() => handleDeleteRoom(room)}
+                            style={{ 
+                              width: "36px", height: "36px", display: "flex", alignItems: "center", 
+                              justifyContent: "center", background: "#fef2f2", color: "#ef4444", 
+                              border: "1px solid #fee2e2", borderRadius: "10px", cursor: "pointer", 
+                              transition: "all 0.2s" 
                             }}
-                            style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s" }}
-                            title="Delete"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#fee2e2";
+                              e.currentTarget.style.transform = "scale(1.05)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#fef2f2";
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                            title="Delete Room"
                           >
                             🗑️
                           </button>

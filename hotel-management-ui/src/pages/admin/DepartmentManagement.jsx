@@ -117,15 +117,47 @@ export const DepartmentManagement = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this department?")) return;
-    const { error } = await supabase.from('departments').delete().eq('id', id);
-    if (!error) fetchDepartments();
+    if (!window.confirm("Are you sure you want to delete this department? This will only work if there are no Job Roles linked to it.")) return;
+    
+    try {
+      const { error } = await supabase.from('departments').delete().eq('id', id);
+      
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error("Cannot delete department because it has Job Roles assigned to it. Please delete the roles first.");
+        }
+        throw error;
+      }
+
+      setNotification({ type: "success", message: "Department removed from database." });
+      fetchDepartments();
+    } catch (error) {
+      setNotification({ type: "error", message: error.message });
+    } finally {
+      setTimeout(() => setNotification(null), 4000);
+    }
   };
 
   const handleRoleDelete = async (id) => {
-    if (!window.confirm("Delete this role?")) return;
-    const { error } = await supabase.from('job_roles').delete().eq('id', id);
-    if (!error) fetchRoles();
+    if (!window.confirm("Are you sure you want to delete this job role? This will only work if no staff members are currently assigned to it.")) return;
+    
+    try {
+      const { error } = await supabase.from('job_roles').delete().eq('id', id);
+      
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error("Cannot delete role because staff members are still assigned to it. Please reassign them first.");
+        }
+        throw error;
+      }
+
+      setNotification({ type: "success", message: "Job role removed successfully." });
+      fetchRoles();
+    } catch (error) {
+      setNotification({ type: "error", message: error.message });
+    } finally {
+      setTimeout(() => setNotification(null), 4000);
+    }
   };
 
   // Filter Logic
@@ -216,7 +248,25 @@ export const DepartmentManagement = () => {
                           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{dept.hotel_branches?.branch_name}</div>
                         </td>
                         <td style={{ padding: "1.25rem 2rem", textAlign: "right" }}>
-                          <button onClick={() => handleDelete(dept.id)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.1rem" }}>🗑️</button>
+                          <button 
+                            onClick={() => handleDelete(dept.id)} 
+                            style={{ 
+                              width: "36px", height: "36px", display: "flex", alignItems: "center", 
+                              justifyContent: "center", background: "#fef2f2", color: "#ef4444", 
+                              border: "1px solid #fee2e2", borderRadius: "10px", cursor: "pointer", 
+                              transition: "all 0.2s" 
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#fee2e2";
+                              e.currentTarget.style.transform = "scale(1.05)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#fef2f2";
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                          >
+                            🗑️
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -294,7 +344,25 @@ export const DepartmentManagement = () => {
                           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{role.departments?.name}</div>
                         </td>
                         <td style={{ padding: "1.25rem 2rem", textAlign: "right" }}>
-                          <button onClick={() => handleRoleDelete(role.id)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.1rem" }}>🗑️</button>
+                          <button 
+                            onClick={() => handleRoleDelete(role.id)} 
+                            style={{ 
+                              width: "36px", height: "36px", display: "flex", alignItems: "center", 
+                              justifyContent: "center", background: "#fef2f2", color: "#ef4444", 
+                              border: "1px solid #fee2e2", borderRadius: "10px", cursor: "pointer", 
+                              transition: "all 0.2s" 
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#fee2e2";
+                              e.currentTarget.style.transform = "scale(1.05)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#fef2f2";
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                          >
+                            🗑️
+                          </button>
                         </td>
                       </tr>
                     ))

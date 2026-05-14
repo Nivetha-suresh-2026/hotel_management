@@ -84,8 +84,7 @@ export const BranchCreation = () => {
         end_floor: parseInt(formData.endFloor),
         contact_number: formData.contactNumber,
         status: 'Active',
-        created_by: profile.id,
-        owner_id: profile.id
+        created_by: profile.id
       };
 
       if (editingId) {
