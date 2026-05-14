@@ -38,7 +38,7 @@ const HotelPerformance = () => {
         supabase.from('rooms').select(`*, hotel_branches!fk_branch(branch_name)`),
         supabase.from('hotel_branches').select('*'),
         supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
-        supabase.from('staff').select('*', { count: 'exact' }).eq('status', 'active'),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'staff'),
         supabase.from('bookings').select('*, hotel_branches!bookings_branch_fkey(branch_name)')
       ]);
 

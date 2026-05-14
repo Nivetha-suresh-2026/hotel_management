@@ -21,5 +21,11 @@ export const PATHS = {
   OWNER_USERS: "/owner/users",
 
   // Common
-  BOOKING: "/booking"
+  BOOKING: "/booking",
+
+  // Staff Routes
+  STAFF_DASHBOARD: "/staff/dashboard",
+  STAFF_PROFILE: "/staff/profile",
+  STAFF_TASKS: "/staff/tasks",
+  STAFF_LEAVE: "/staff/leave",
 };

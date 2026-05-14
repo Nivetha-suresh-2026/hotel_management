@@ -60,15 +60,15 @@ const ActivityLogs = () => {
         });
       }
 
-      // 3. Fetch Staff from Supabase
+      // 3. Fetch Staff from Users table (role = staff)
       const { data: staffList } = await supabase
-        .from('staff')
+        .from('users')
         .select(`
-          full_name, 
+          name, 
           created_at, 
-          hotel_branches(branch_name), 
-          job_roles(role_name)
+          hotel_branches(branch_name)
         `)
+        .eq('role', 'staff')
         .order('created_at', { ascending: false });
 
       if (staffList) {
@@ -77,7 +77,7 @@ const ActivityLogs = () => {
             id: `staff-${s.created_at}`,
             type: "staff",
             title: "Staff Enrolled",
-            description: `${s.full_name} was enrolled as ${s.job_roles?.role_name || 'Staff'} in ${s.hotel_branches?.branch_name || 'a branch'}.`,
+            description: `${s.name} was enrolled as Staff in ${s.hotel_branches?.branch_name || 'a branch'}.`,
             timestamp: new Date(s.created_at),
             icon: "👥",
             color: "#10b981"

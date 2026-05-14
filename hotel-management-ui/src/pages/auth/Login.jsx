@@ -22,6 +22,7 @@ function Login() {
     if (session && role) {
       if (role === 'owner') navigate('/owner');
       else if (role === 'admin') navigate('/admin');
+      else if (role === 'staff') navigate('/staff/dashboard');
     } else if (!session) {
       // Safely clear stale data — no signOut needed (avoids race condition)
       localStorage.clear();

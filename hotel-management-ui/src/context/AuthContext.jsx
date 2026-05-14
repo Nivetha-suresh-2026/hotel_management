@@ -27,7 +27,8 @@ export const AuthProvider = ({ children }) => {
         if (error) { console.error('AuthContext: profile fetch error', error); return; }
 
         if (data) {
-          const appRole = data.role === 'hotel_owner' ? 'owner' : 'admin';
+          const ROLE_MAP = { hotel_owner: 'owner', admin: 'admin', staff: 'staff' };
+          const appRole = ROLE_MAP[data.role] ?? null;
           setProfile(data);
           setRole(appRole);
           loadedUidRef.current = userId;

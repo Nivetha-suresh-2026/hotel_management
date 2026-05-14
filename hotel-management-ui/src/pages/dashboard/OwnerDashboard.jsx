@@ -27,10 +27,11 @@ function OwnerDashboard() {
     try {
       setLoading(true);
 
-      // 1. Staff from Supabase
+      // 1. Staff from Supabase (filtered by role)
       const { count: staffCount } = await supabase
-        .from('staff')
-        .select('*', { count: 'exact', head: true });
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'staff');
 
       // 2. Admins from Supabase (filtered by role)
       const { count: adminCount } = await supabase
